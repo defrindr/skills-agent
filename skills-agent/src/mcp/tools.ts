@@ -72,5 +72,41 @@ export const SKILL_TOOLS = [
         }
       }
     }
+  },
+
+  {
+    name: 'init_project',
+    description: 'Initialize new project with best practices from project-readability. Supports Next.js, NestJS, React, Express, and more.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        name: {
+          type: 'string',
+          description: 'Project name'
+        },
+        framework: {
+          type: 'string',
+          enum: ['nextjs', 'nestjs', 'react-vite', 'expressjs'],
+          description: 'Framework template to use'
+        },
+        path: {
+          type: 'string',
+          description: 'Directory where project will be created (defaults to current directory)'
+        },
+        features: {
+          type: 'array',
+          items: {
+            type: 'string',
+            enum: ['auth', 'postgres', 'mongodb', 'docker', 'testing']
+          },
+          description: 'Optional features to include'
+        },
+        provider: {
+          type: 'string',
+          description: 'Override default provider (optional, uses free tier by default)'
+        }
+      },
+      required: ['name', 'framework']
+    }
   }
 ];

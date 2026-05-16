@@ -65,6 +65,10 @@ export class SkillsMCPServer {
             result = await toolHandlers.handleLoadSkillContext(args);
             break;
 
+          case 'init_project':
+            result = await toolHandlers.handleInitProject(args);
+            break;
+
           default:
             throw new Error(`Unknown tool: ${name}`);
         }

@@ -1,0 +1,30 @@
+name: nextjs-auth
+dependencies:
+  - next-auth@beta
+  - "@auth/prisma-adapter"
+  - zod
+
+structure:
+  - path: features/auth/components/login-form.tsx
+    template: nextjs-auth-login-form
+  - path: features/auth/components/register-form.tsx
+    template: nextjs-auth-register-form
+  - path: features/auth/actions.ts
+    template: nextjs-auth-actions
+  - path: features/auth/schema.ts
+    template: nextjs-auth-schema
+  - path: features/auth/types.ts
+    template: nextjs-auth-types
+  - path: app/(auth)/login/page.tsx
+    template: nextjs-auth-login-page
+  - path: app/(auth)/register/page.tsx
+    template: nextjs-auth-register-page
+  - path: shared/lib/auth.ts
+    template: nextjs-auth-lib
+  - path: app/api/auth/[...nextauth]/route.ts
+    template: nextjs-auth-route
+
+envVars:
+  - "# Authentication"
+  - "NEXTAUTH_SECRET=your-secret-here"
+  - "NEXTAUTH_URL=http://localhost:3000"

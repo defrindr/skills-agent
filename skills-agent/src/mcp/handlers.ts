@@ -10,6 +10,9 @@ import { providerExecutor } from '../providers/executor.js';
 import { budgetTracker } from '../budget/tracker.js';
 import { detectFramework } from '../utils/framework-detector.js';
 import { logger } from '../utils/logger.js';
+import { projectGenerator } from '../templates/generator.js';
+import { templateManager } from '../templates/manager.js';
+import type { InitProjectInput } from '../types/template.js';
 
 export class ToolHandlers {
   async handleExploreCodebase(args: any): Promise<string> {
@@ -121,6 +124,67 @@ export class ToolHandlers {
     const context = await this.buildSkillContext(skillsToLoad);
 
     return `# Loaded Skills Context\n\n${context}\n\n**Ready to use these skills in your task!**`;
+  }
+
+  async handleInitProject(args: any): Promise<string> {
+    const { name, framework, path = `./${name}`, features = [], provider: overrideProvider } = args;
+
+    logger.info(`Initializing ${framework} project: ${name}`);
+
+    try {
+      // Validate framework
+      const availableFrameworks = templateManager.listAvailableFrameworks();
+      if (!availableFrameworks.includes(framework)) {
+        throw new Error(
+          `Framework "${framework}" not supported. Available: ${availableFrameworks.join(', ')}`
+        );
+      }
+
+      // Build input
+      const input: InitProjectInput = {
+        name,
+        framework,
+        path,
+        features,
+        typescript: true,
+      };
+
+      // Generate project
+      logger.info('Generating project structure...');
+      const result = await projectGenerator.generate(input);
+
+      // Format result
+      const featuresStr = features.length > 0 ? `\n**Features:** ${features.join(', ')}` : '';
+      const nextSteps = result.nextSteps.map((step: string, i: number) => `${i + 1}. ${step}`).join('\n');
+
+      return `# ✅ Project Initialized Successfully!
+
+**Name:** ${name}
+**Framework:** ${framework}${featuresStr}
+**Path:** ${result.path}
+**Files Created:** ${result.files.length}
+
+## Next Steps
+
+${nextSteps}
+
+## What's Included
+
+- Clean project structure following \`project-readability\` principles
+- Feature-first architecture
+- TypeScript configuration
+- Linting and type checking
+- Environment variables template
+${features.includes('auth') ? '- Authentication setup with NextAuth.js\n' : ''}${features.includes('postgres') ? '- PostgreSQL database with Prisma\n' : ''}${features.includes('docker') ? '- Docker and docker-compose configuration\n' : ''}
+## Documentation
+
+Check \`README.md\` in your project for detailed setup instructions.
+
+🚀 Happy coding!`;
+    } catch (error: any) {
+      logger.error(`Project initialization failed: ${error.message}`);
+      throw new Error(`Failed to initialize project: ${error.message}`);
+    }
   }
 
   // Helper methods

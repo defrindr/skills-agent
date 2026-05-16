@@ -2,7 +2,33 @@
 
 Get started dengan Skills Agent dalam 5 menit!
 
-## ⚡ Quick Setup
+## ⚡ Quick Setup (NEW - One Command!)
+
+### Option A: NPX Setup (Recommended)
+
+```bash
+# One command setup - interactive prompts
+npx @defrindr/skills-agent setup
+
+# Follow prompts to:
+# - Add API keys (DeepSeek, Groq, Claude)
+# - Configure OpenCode MCP
+# - Test connections
+```
+
+**That's it!** Restart OpenCode and you're ready.
+
+### Option B: Install Script
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/defrindr/skills-agent/main/install.sh | bash
+skills-agent setup
+```
+
+### Option C: Manual Setup
+
+<details>
+<summary>Click to expand manual setup steps</summary>
 
 ### 1. Install
 ```bash
@@ -46,10 +72,29 @@ Create `~/.opencode/mcp-config.json`:
 
 Replace `/ABSOLUTE/PATH/TO` dengan actual path dari `pwd`.
 
-### 5. Restart OpenCode & Try
+</details>
 
+## 🚀 Try It Out
+
+### 1. Explore a Codebase
 ```
-@copilot explore this codebase
+@copilot explore this codebase in detail
+```
+
+### 2. Initialize New Project (NEW!)
+```
+@copilot init new nextjs project with auth and postgres
+```
+
+Creates a production-ready Next.js app with:
+- Feature-first architecture
+- Authentication (NextAuth.js)
+- Database (Prisma + PostgreSQL)
+- TypeScript + Tailwind CSS
+- Docker-ready
+
+### 3. Implement a Feature
+```
 @copilot implement dark mode toggle
 ```
 
@@ -61,6 +106,7 @@ Pre-defined expertise yang AI agent bisa load on-demand:
 - **codebase-explorer** - Understand project structure (Complex, uses Claude)
 - **feature-architect** - Design & implement features (Medium, uses DeepSeek)
 - **token-efficient-coding** - Write concise code (Simple, uses DeepSeek)
+- **project-initializer** - Generate new projects (NEW!)
 
 Plus 11 framework-specific skills (auto-loaded).
 
@@ -88,6 +134,21 @@ node dist/cli.js budget
 Enforces daily limits, warns when approaching threshold.
 
 ## 🚀 Usage Examples
+
+### Initialize New Project (NEW!)
+```
+@copilot init new nextjs project with auth and postgres
+```
+
+**What happens:**
+1. Generates production-ready project structure
+2. Follows project-readability principles
+3. Installs dependencies automatically
+4. Includes authentication & database setup
+5. Creates Docker configuration
+6. Git init with initial commit
+
+**Result:** Ready-to-run project in < 60 seconds!
 
 ### Explore Codebase
 ```

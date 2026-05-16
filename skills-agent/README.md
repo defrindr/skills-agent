@@ -6,18 +6,45 @@ Multi-provider AI agent skills system dengan MCP integration untuk OpenCode.
 
 - ✅ **Multi-Provider Support** - DeepSeek, Groq, Claude, OpenRouter, dan custom providers
 - ✅ **MCP Integration** - Seamless integration dengan OpenCode/Copilot
+- ✅ **Project Initialization** - Generate production-ready projects (NEW!)
+- ✅ **One-Command Setup** - Interactive setup wizard (NEW!)
 - ✅ **Flexible Configuration** - YAML + ENV vars, per-skill overrides, budget controls
 - ✅ **Auto Fallback** - Automatic fallback kalau provider down
 - ✅ **Budget Tracking** - Track usage, cost, enforce daily limits
 - ✅ **Framework Detection** - Auto-detect Next.js, NestJS, React, dll
 - ✅ **Skill System** - Modular, extensible skill definitions
 
-## 📦 Installation
+## 📦 Quick Start
+
+### Option A: NPX Setup (Recommended)
+
+```bash
+# One command - interactive setup
+npx @defrindr/skills-agent setup
+```
+
+Prompts you for:
+- API keys (DeepSeek, Groq, Claude)
+- Configuration preferences
+- OpenCode MCP setup
+- Connection testing
+
+**Done!** Restart OpenCode and start using.
+
+### Option B: Install Script
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/defrindr/skills-agent/main/install.sh | bash
+skills-agent setup
+```
+
+### Option C: Manual Installation
 
 ```bash
 cd skills-agent
 npm install
 npm run build
+skills-agent setup  # or manual config below
 ```
 
 ## ⚙️ Configuration
@@ -97,6 +124,34 @@ Create `~/.opencode/mcp-config.json`:
 3. Skills agent tools akan available di Copilot/ChatGPT agent
 
 ### Available Tools
+
+#### `init_project` (NEW!)
+Initialize new project with best practices.
+
+```typescript
+// Di OpenCode dengan Copilot
+> @copilot init new nextjs project with auth and postgres
+
+// Behind the scenes:
+init_project({
+  name: "my-app",
+  framework: "nextjs",
+  features: ["auth", "postgres"]
+})
+```
+
+**Supported Frameworks:**
+- `nextjs` - Next.js 14 (App Router)
+- `nestjs` - NestJS (coming soon)
+- `react-vite` - React + Vite (coming soon)
+- `expressjs` - Express.js (coming soon)
+
+**Available Features:**
+- `auth` - Authentication (NextAuth.js, Passport, etc.)
+- `postgres` - PostgreSQL database dengan Prisma
+- `mongodb` - MongoDB (coming soon)
+- `docker` - Docker & docker-compose (coming soon)
+- `testing` - Testing setup (coming soon)
 
 #### `explore_codebase`
 Map dan analyze codebase - framework detection, architecture patterns, code flow.

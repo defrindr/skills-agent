@@ -6,7 +6,8 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "bin": {
-    "skills-agent": "dist/cli.js"
+    "skills-agent": "dist/cli.js",
+    "skills-agent-setup": "dist/setup.js"
   },
   "scripts": {
     "build": "tsc",
