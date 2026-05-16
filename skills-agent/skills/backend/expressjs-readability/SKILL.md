@@ -109,25 +109,90 @@ declare namespace Express {
 
 ---
 
-## 1. Database Work — Defer to Database Skills
+## 1. Database Work — DATABASE-FIRST PROTOCOL
 
-**PENTING**: Skill ini untuk **application code** (routes, middleware, services), **bukan database design**.
+**CRITICAL**: Skill ini untuk **application code** (routes, middleware, services), **bukan database design**.
 
-### Kapan Invoke Database Skills
+### Protocol: JANGAN NGIDE, ALWAYS TANYA DULU
 
-**Sebelum menulis kode apapun yang akses database:**
+**MANDATORY UNTUK SEMUA DATABASE WORK:**
 
-1. **Schema design** → Invoke `database-designer` skill
-   - Trigger: "design schema untuk orders", "create user model", "design relasi user-orders"
-   - Output: ERD, Prisma schema, indexes, relationships, migration strategy
+Ketika user minta feature/endpoint/code yang touch database:
+
+1. **STOP** — jangan langsung generate code
+2. **ASK** — tanya user tentang database setup
+3. **WAIT** — tunggu user response sebelum proceed
+4. **VERIFY** — pastikan schema ready sebelum coding
+
+### Phase 1: Database Verification (WAJIB — JANGAN SKIP!)
+
+**SEBELUM generate ANY code yang akses database, TANYA user:**
+
+```
+Sebelum bikin [feature-name], saya perlu cek database setup dulu:
+
+Database Checklist:
+1. Schema Design
+   - Apakah schema [entity-name] sudah di-design? (ERD, relationships)
+   - Apakah ada relasi ke entity lain (User, Product, dll)?
    
-2. **Query optimization** → Invoke `database-optimizer` skill
-   - Trigger: "query lambat", "N+1 problem", "perlu index", "optimize repository"
-   - Output: EXPLAIN analysis, index recommendations, query rewrites
+2. Prisma Setup
+   - Apakah Prisma schema sudah ada di schema.prisma?
+   - Apakah migration sudah dibuat dan di-run?
+   
+3. Indexes & Performance
+   - Apakah sudah ada index untuk common queries?
+   - (Contoh: userId, createdAt, status)
+
+Please confirm status:
+- [ ] Schema sudah di-design
+- [ ] Prisma schema sudah ada
+- [ ] Migration sudah di-run
+
+Silakan jawab dengan status setiap item. Jangan skip checklist ini.
+```
+
+**JANGAN PROCEED sampai user confirm!**
+
+### Phase 2: Design Schema (jika belum ada)
+
+**IF user jawab "belum" atau "tidak yakin":**
+
+```
+Schema belum ready. Saya HARUS invoke database-designer dulu sebelum generate code.
+
+Saya akan design:
+- Entity: [entity-name]
+- Relationships: [list relasi yang dibutuhkan]
+- Indexes: [common query patterns]
+
+Boleh saya invoke database-designer sekarang? (y/n)
+```
+
+**WAIT for user approval** — jangan auto-invoke tanpa izin!
+
+### Phase 3: Generate Application Code (hanya setelah confirmed)
+
+**ONLY after user confirm "schema ready":**
+
+```
+Perfect! Schema sudah ready. Sekarang saya generate Express code:
+
+Will create:
+- routes/[name].router.ts (HTTP endpoints)
+- services/[name].service.ts (business logic)  
+- schemas/[name].schema.ts (Zod validation)
+
+Reminder: Pastikan index sudah ada di [list columns]. Check database-optimizer jika query lambat.
+
+Proceeding...
+```
+
+**Kemudian** baru generate code.
 
 ### Skill Boundary
 
-✅ **Skill ini (expressjs-readability) handle:**
+✅ **Skill ini handle:**
 - Middleware pipeline dan error handling
 - Router/service/repository patterns (application layer)
 - Transaction management (scale-aware)
@@ -139,25 +204,33 @@ declare namespace Express {
 - Query optimization (EXPLAIN, indexes) → `database-optimizer`
 - Normalization (1NF, 2NF, 3NF) → `database-designer`
 
-### Workflow yang Benar
+### Anti-Pattern: JANGAN LAKUKAN INI
 
-**User tanya:** "Bikin endpoint orders di Express API"
-
-**✅ Correct flow:**
-1. Tanya: "Apakah schema Order sudah di-design? Ada relasi ke User/Product?"
-2. Kalau belum → Sarankan invoke `database-designer` dulu:
-   - "Sebelum bikin endpoint, design schema Order dulu. Invoke: 'Design orders schema dengan relasi ke users dan products, include timestamps dan soft delete'"
-3. Setelah schema ready (user sudah run `npx prisma migrate dev`):
-   - Generate Express route/service code
-   - Reminder: "Pastikan sudah ada index di `orders.userId` dan `orders.createdAt` (check dengan `database-optimizer` jika perlu)"
-
-**❌ Wrong flow:**
+**❌ WRONG — Langsung generate tanpa tanya:**
 ```typescript
-// Jangan langsung generate tanpa cek schema:
+// AI langsung generate tanpa cek schema:
 ordersRouter.post("/", async (req, res) => {
   const order = await db.order.create({ data: { ...req.body } })
   res.json(order)
 })
+```
+
+**Why wrong:**
+- Assume schema exists
+- Tidak tahu relasi apa yang ada
+- Tidak tahu index apa yang perlu
+- User belum confirm setup ready
+
+**✅ CORRECT — Tanya dulu, generate kemudian:**
+```
+AI: "Apakah schema Order sudah di-design? Please confirm checklist..."
+User: "Belum"
+AI: "OK, saya invoke database-designer dulu. Boleh?"
+User: "Ya"
+AI: [invoke database-designer]
+User: [run migration]
+User: "Done"
+AI: "Great! Sekarang generate Express code..." [generate code]
 ```
 
 ### Prisma Tips (after schema designed)

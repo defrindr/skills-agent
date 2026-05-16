@@ -43,13 +43,28 @@ Kalau ada konflik antara kebiasaan NestJS, tutorial internet, dan aturan readabi
 
 ---
 
-## 1. Database Work — Defer to Database Skills
+## 1. Database Work — DATABASE-FIRST PROTOCOL
 
-**PENTING**: Skill ini untuk **application code** (modules, controllers, services), **bukan database design**.
+**CRITICAL**: Skill ini untuk **application code** (modules, controllers, services), **bukan database design**.
 
-### Klarifikasi: `.schema.ts` vs Database Schema
+### Protocol: JANGAN NGIDE, ALWAYS TANYA DULU
 
-**CRITICAL**: Di NestJS, `.schema.ts` = **Zod validation schema**, BUKAN database schema!
+**MANDATORY UNTUK SEMUA DATABASE WORK:**
+
+Ketika user minta feature/module/endpoint yang touch database:
+
+1. **STOP** — jangan langsung generate code
+2. **ASK** — tanya user tentang database setup
+3. **WAIT** — tunggu user response sebelum proceed
+4. **VERIFY** — pastikan entity ready sebelum coding
+
+### PENTING: `.schema.ts` ≠ Database Schema!
+
+**Di NestJS:**
+- `orders.schema.ts` = **Zod validation schema** (request/response validation)
+- `orders.entity.ts` = **Database model** (TypeORM/Prisma entity)
+
+Jangan bingung! Validation schema beda sama database schema.
 
 ```typescript
 // orders.schema.ts = REQUEST VALIDATION (Zod)
@@ -78,23 +93,87 @@ export class Order {
 }
 ```
 
-**Jangan sampai bingung**: validation schema ≠ database schema design!
+### Phase 1: Database Verification (WAJIB — JANGAN SKIP!)
 
-### Kapan Invoke Database Skills
+**SEBELUM generate ANY code yang akses database, TANYA user:**
 
-**Sebelum membuat ANY entity/model/repository:**
+```
+Sebelum bikin [module-name], saya perlu cek database setup dulu:
 
-1. **Schema design** → Invoke `database-designer` skill
-   - Trigger: "design Order entity", "create users table", "design relasi order-items"
-   - Output: ERD, TypeORM/Prisma entity definitions, indexes, relationships, migrations
+Database Checklist:
+1. Entity Design
+   - Apakah entity [EntityName] sudah di-design? (ERD, relationships)
+   - Apakah ada relasi ke entity lain (@ManyToOne, @OneToMany)?
    
-2. **Query optimization** → Invoke `database-optimizer` skill
-   - Trigger: "repository query lambat", "N+1 di OrdersService", "perlu index"
-   - Output: EXPLAIN analysis, eager loading strategies (leftJoinAndSelect), index recommendations
+2. TypeORM/Prisma Setup
+   - Apakah entity file (orders.entity.ts) sudah ada?
+   - Apakah migration sudah dibuat dan di-run?
+   
+3. Indexes & Performance
+   - Apakah sudah ada index untuk common queries?
+   - (Contoh: userId, status, createdAt)
+
+Please confirm status:
+- [ ] Entity sudah di-design
+- [ ] Entity file sudah ada
+- [ ] Migration sudah di-run
+
+Silakan jawab dengan status setiap item. Jangan skip checklist ini.
+```
+
+**JANGAN PROCEED sampai user confirm!**
+
+### Phase 2: Design Entity (jika belum ada)
+
+**IF user jawab "belum" atau "tidak yakin":**
+
+```
+Entity belum ready. Saya HARUS invoke database-designer dulu sebelum generate code.
+
+Saya akan design:
+- Entity: [EntityName]
+- Relationships: [list relasi yang dibutuhkan, e.g., @ManyToOne ke User]
+- Indexes: [common query patterns]
+
+Boleh saya invoke database-designer sekarang? (y/n)
+```
+
+**WAIT for user approval** — jangan auto-invoke tanpa izin!
+
+### Phase 3: Generate Application Code (hanya setelah confirmed)
+
+**ONLY after user confirm "entity ready":**
+
+```
+Perfect! Entity sudah ready. Sekarang saya generate NestJS module:
+
+Will create:
+- orders.schema.ts (Zod validation — request/response)
+- orders.entity.ts (Database model — from database-designer)
+- orders.repository.ts (Database queries)
+- orders.service.ts (Business logic)
+- orders.controller.ts (HTTP layer)
+
+Reminder: Pastikan index sudah ada di [list columns]. Check database-optimizer jika query lambat.
+
+Proceeding...
+```
+
+**Kemudian** baru generate code.
+  @PrimaryColumn('uuid') id: string
+  @Column('uuid') userId: string
+  @Column('uuid') productId: string
+  @Column('int') quantity: number
+  @ManyToOne(() => User) user: User
+  @ManyToOne(() => Product) product: Product
+}
+```
+
+**Jangan sampai bingung**: validation schema ≠ database schema design!
 
 ### Skill Boundary
 
-✅ **Skill ini (nestjs-readability) handle:**
+✅ **Skill ini handle:**
 - Feature-first module structure
 - Controller → Service → Repository pattern (application layer)
 - DTO dan validation schemas (Zod/class-validator)
@@ -107,25 +186,11 @@ export class Order {
 - Migrations (TypeORM, Prisma) → `database-designer`
 - Query performance (EXPLAIN, indexes) → `database-optimizer`
 
-### Workflow yang Benar
+### Anti-Pattern: JANGAN LAKUKAN INI
 
-**User tanya:** "Bikin orders module di NestJS"
-
-**✅ Correct flow:**
-1. Tanya: "Apakah entity Order sudah di-design? Ada relasi ke User/Product?"
-2. Kalau belum → Sarankan invoke `database-designer` dulu:
-   - "Sebelum bikin module, design entity Order dulu. Invoke: 'Design orders entity dengan relasi ManyToOne ke users dan products, include timestamps dan soft delete'"
-3. Setelah entity ready (user sudah run migration):
-   - Generate NestJS module structure:
-     - `orders.schema.ts` (Zod validation)
-     - `orders.entity.ts` (from database-designer output)
-     - `orders.repository.ts` (application layer)
-     - `orders.service.ts`, `orders.controller.ts`
-4. Reminder: "Pastikan sudah ada index di `orders.userId` dan `orders.createdAt` (check dengan `database-optimizer` jika perlu)"
-
-**❌ Wrong flow:**
+**❌ WRONG — Langsung generate entity tanpa tanya:**
 ```typescript
-// Jangan langsung generate TypeORM entity tanpa design:
+// AI langsung generate tanpa cek entity:
 @Entity()
 export class Order {
   @PrimaryGeneratedColumn() id: number
@@ -134,7 +199,25 @@ export class Order {
 }
 ```
 
-### TypeORM/Prisma Tips (after schema designed)
+**Why wrong:**
+- Assume entity design exists
+- Tidak tahu relasi apa yang ada (@ManyToOne? @OneToMany?)
+- Tidak tahu index apa yang perlu
+- User belum confirm setup ready
+
+**✅ CORRECT — Tanya dulu, generate kemudian:**
+```
+AI: "Apakah entity Order sudah di-design? Please confirm checklist..."
+User: "Belum"
+AI: "OK, saya invoke database-designer dulu. Boleh?"
+User: "Ya"
+AI: [invoke database-designer]
+User: [run migration]
+User: "Done"
+AI: "Great! Sekarang generate NestJS module..." [generate code]
+```
+
+### TypeORM/Prisma Tips (after entity confirmed ready)
 
 **Generate migration** setelah entity di-design:
 ```bash
@@ -149,7 +232,7 @@ npx prisma generate
 
 **Di application code:**
 ```typescript
-// orders.repository.ts (after schema designed)
+// orders.repository.ts (after entity designed)
 @Injectable()
 export class OrdersRepository {
   constructor(

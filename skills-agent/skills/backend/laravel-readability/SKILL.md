@@ -58,25 +58,98 @@ Taste rules dari `project-readability.md` tetap berlaku penuh.
 
 ---
 
-## 1. Database Work — Defer to Database Skills
+## 1. Database Work — DATABASE-FIRST PROTOCOL
 
-**PENTING**: Skill ini untuk **application code** (Controllers, Services, Jobs, Models), **bukan database design**.
+**CRITICAL**: Skill ini untuk **application code** (Controllers, Services, Jobs, Models), **bukan database design**.
 
-### Kapan Invoke Database Skills
+### Protocol: JANGAN NGIDE, ALWAYS TANYA DULU
 
-**Sebelum membuat ANY Eloquent model, migration, atau relationship:**
+**MANDATORY UNTUK SEMUA DATABASE WORK:**
 
-1. **Schema design** → Invoke `database-designer` skill
-   - Trigger: "design orders table", "create users schema", "design relasi order-items"
-   - Output: ERD, Laravel migration files, indexes, Eloquent relationships, foreign key constraints
+Ketika user minta feature/endpoint yang touch database:
+
+1. **STOP** — jangan langsung generate code
+2. **ASK** — tanya user tentang database setup
+3. **WAIT** — tunggu user response sebelum proceed
+4. **VERIFY** — pastikan schema ready sebelum coding
+
+### Phase 1: Database Verification (WAJIB — JANGAN SKIP!)
+
+**SEBELUM generate ANY code yang akses database, TANYA user:**
+
+```
+Sebelum bikin [feature-name], saya perlu cek database setup dulu:
+
+Database Checklist:
+1. Schema Design
+   - Apakah table [table_name] sudah di-design? (ERD, relationships)
+   - Apakah ada relasi ke table lain (users, products, dll)?
    
-2. **Query optimization** → Invoke `database-optimizer` skill
-   - Trigger: "slow query di OrdersRepository", "N+1 problem", "eager loading lambat"
-   - Output: EXPLAIN analysis, index recommendations, Eloquent query optimization (with, select)
+2. Migration Setup
+   - Apakah migration file sudah dibuat?
+   - Apakah migration sudah di-run (php artisan migrate)?
+   
+3. Eloquent Model
+   - Apakah Eloquent model (Order.php) sudah ada?
+   - Apakah relationships (hasMany, belongsTo) sudah di-define?
+   
+4. Indexes & Performance
+   - Apakah sudah ada index untuk common queries?
+   - (Contoh: user_id, status, created_at)
+
+Please confirm status:
+- [ ] Schema sudah di-design
+- [ ] Migration sudah dibuat dan di-run
+- [ ] Eloquent model sudah ada
+
+Silakan jawab dengan status setiap item. Jangan skip checklist ini.
+```
+
+**JANGAN PROCEED sampai user confirm!**
+
+### Phase 2: Design Schema (jika belum ada)
+
+**IF user jawab "belum" atau "tidak yakin":**
+
+```
+Schema belum ready. Saya HARUS invoke database-designer dulu sebelum generate code.
+
+Saya akan design:
+- Table: [table_name]
+- Relationships: [list relasi yang dibutuhkan]
+- Indexes: [common query patterns]
+- Migration file: Laravel migration syntax
+
+Boleh saya invoke database-designer sekarang? (y/n)
+```
+
+**WAIT for user approval** — jangan auto-invoke tanpa izin!
+
+### Phase 3: Generate Application Code (hanya setelah confirmed)
+
+**ONLY after user confirm "schema ready dan migration sudah run":**
+
+```
+Perfect! Schema sudah ready dan migration sudah run. Sekarang saya generate Laravel code:
+
+Will create:
+- Models/Order.php (Eloquent model dengan relationships)
+- OrdersRepository.php (Eloquent queries)
+- CreateOrderService.php (Business logic)
+- Controllers/OrdersController.php (HTTP layer)
+- Resources/OrderResource.php (snake_case → camelCase transformation)
+- Requests/StoreOrderRequest.php (Validation)
+
+Reminder: Pastikan index sudah ada di [list columns]. Check database-optimizer jika query lambat.
+
+Proceeding...
+```
+
+**Kemudian** baru generate code.
 
 ### Skill Boundary
 
-✅ **Skill ini (laravel-readability) handle:**
+✅ **Skill ini handle:**
 - Feature/business-domain folder structure
 - Eloquent usage di repositories/services
 - API resource transformations (snake_case → camelCase)
@@ -90,107 +163,61 @@ Taste rules dari `project-readability.md` tetap berlaku penuh.
 - Query performance analysis → `database-optimizer`
 - Eloquent relationship setup (hasMany, belongsTo, morphMany) → `database-designer`
 
-### Workflow yang Benar
+### Anti-Pattern: JANGAN LAKUKAN INI
 
-**User tanya:** "Bikin orders feature di Laravel API"
-
-**✅ Correct flow:**
-1. Tanya: "Apakah schema orders table sudah di-design? Ada relasi ke users/products?"
-2. Kalau belum → Sarankan invoke `database-designer` dulu:
-   - "Sebelum bikin feature, design schema orders dulu. Invoke: 'Design orders table dengan foreign key ke users dan products, include status enum, timestamps, dan soft deletes. Need indexes on user_id, status, created_at'"
-3. Setelah design ready → User jalankan migration:
-   ```bash
-   # database-designer akan output migration file
-   php artisan migrate
-   ```
-4. Kemudian generate Laravel code:
-   - `app/Orders/Models/Order.php` (Eloquent model dari schema)
-   - `app/Orders/OrdersRepository.php` (Eloquent queries)
-   - `app/Orders/CreateOrderService.php` (business logic)
-   - `app/Orders/Http/Controllers/OrdersController.php` (HTTP layer)
-   - `app/Orders/Http/Resources/OrderResource.php` (snake_case → camelCase)
-   - `app/Orders/Http/Requests/StoreOrderRequest.php` (validation)
-5. Reminder: "Pastikan migration sudah include index di `orders.user_id`, `orders.status`, `orders.created_at`. Check dengan `database-optimizer` jika query lambat."
-
-**❌ Wrong flow:**
+**❌ WRONG — Langsung generate model tanpa tanya:**
 ```php
-// Jangan langsung generate Eloquent model tanpa design:
+// AI langsung generate tanpa cek schema:
 class Order extends Model {
-    protected $fillable = ['user_id', 'total'];  // ← relasi? index? tipe data decimal?
+    protected $fillable = ['user_id', 'total'];  // ← relasi? index? decimal precision?
 }
 ```
 
-### Laravel Migration Tips (after schema designed)
+**Why wrong:**
+- Assume schema exists
+- Tidak tahu relasi apa yang ada
+- Tidak tahu index apa yang perlu
+- User belum confirm migration run
 
-**Generate migration** dari database-designer output:
-```bash
-# database-designer akan berikan migration file lengkap:
-php artisan make:migration create_orders_table
+**✅ CORRECT — Tanya dulu, generate kemudian:**
+```
+AI: "Apakah schema orders table sudah di-design? Please confirm checklist..."
+User: "Belum"
+AI: "OK, saya invoke database-designer dulu. Boleh?"
+User: "Ya"
+AI: [invoke database-designer]
+User: [run php artisan migrate]
+User: "Done"
+AI: "Great! Sekarang generate Laravel code..." [generate code]
 ```
 
-**Example migration (dari database-designer):**
+### Laravel Code Examples (after schema confirmed ready)
+
+**Migration** (dari database-designer):
 ```php
-public function up(): void {
-    Schema::create('orders', function (Blueprint $table) {
-        $table->uuid('id')->primary();
-        $table->foreignUuid('user_id')->constrained()->onDelete('cascade');
-        $table->enum('status', ['pending', 'paid', 'shipped', 'delivered', 'cancelled']);
-        $table->decimal('total', 10, 2);
-        $table->timestamps();
-        $table->softDeletes();
-        
-        // Indexes from database-designer
-        $table->index(['user_id', 'status']);
-        $table->index('created_at');
-    });
-}
+Schema::create('orders', function (Blueprint $table) {
+    $table->uuid('id')->primary();
+    $table->foreignUuid('user_id')->constrained()->onDelete('cascade');
+    $table->decimal('total', 10, 2);
+    $table->timestamps();
+    $table->index(['user_id', 'created_at']);  // indexes from database-designer
+});
 ```
 
-**Di application code** (setelah migration run):
+**Eloquent Model**:
 ```php
-// app/Orders/Models/Order.php
 class Order extends Model {
-    use SoftDeletes;
+    protected $fillable = ['user_id', 'total'];
     
-    protected $fillable = ['user_id', 'status', 'total'];
-    protected $casts = ['id' => 'string', 'total' => 'decimal:2'];
-    
-    // Relationships dari database-designer
     public function user(): BelongsTo {
-        return $this->belongsTo(User::class);
-    }
-    
-    public function items(): HasMany {
-        return $this->hasMany(OrderItem::class);
-    }
-}
-
-// app/Orders/OrdersRepository.php
-class OrdersRepository {
-    public function findByUserWithItems(string $userId): Collection {
-        return Order::with('items')  // avoid N+1 (database-optimizer recommendation)
-            ->where('user_id', $userId)
-            ->orderBy('created_at', 'desc')
-            ->get();
+        return $this->belongsTo(User::class);  // relationship from database-designer
     }
 }
 ```
 
-**API Resource transformation** (snake_case DB → camelCase response):
+**Repository dengan eager loading**:
 ```php
-// app/Orders/Http/Resources/OrderResource.php
-class OrderResource extends JsonResource {
-    public function toArray(Request $request): array {
-        return [
-            'id' => $this->id,
-            'userId' => $this->user_id,           // snake_case → camelCase
-            'status' => $this->status,
-            'total' => $this->total,
-            'createdAt' => $this->created_at,     // snake_case → camelCase
-            'updatedAt' => $this->updated_at,
-        ];
-    }
-}
+Order::with('items')->where('user_id', $userId)->get();  // avoid N+1
 ```
 
 ---
