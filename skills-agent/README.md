@@ -86,10 +86,19 @@ use skills-agent_init_project to create a new Next.js 15 app
 ### MCP Tools (4)
 
 Exposed via OpenCode MCP:
-- `skills-agent_explore_codebase` - Analyze project architecture
-- `skills-agent_implement_feature` - Implement features with best practices
-- `skills-agent_init_project` - Initialize new projects with guidance
-- `skills-agent_load_skill_context` - Load specific skill content
+- `skills-agent_explore_codebase` - Analyze project architecture **(supports personas)**
+- `skills-agent_implement_feature` - Implement features with best practices **(supports personas)**
+- `skills-agent_init_project` - Initialize new projects with guidance **(supports personas)**
+- `skills-agent_load_skill_context` - Load specific skill content **(supports personas)**
+
+### Personas (3)
+
+**NEW:** Apply different lenses to skills without modifying underlying patterns:
+- `senior-engineer` (default) - Professional, pragmatic, maintainability-focused
+- `red-team` - Security adversarial, vulnerability-focused, exploit paths
+- `minimalist` - Terse, code-first, minimal explanations
+
+See [`skills/personas/README.md`](skills/personas/README.md) for custom personas.
 
 ### Skills (21)
 
@@ -150,19 +159,71 @@ use skills-agent_init_project framework=nextjs name=my-app features=["auth","pos
 
 Returns official CLI commands, structure recommendations, setup instructions.
 
-### Explore Codebase
+### Explore Codebase (with Persona)
 ```
-use skills-agent_explore_codebase path=. focus=api-endpoints
+# Default: Professional lens
+use skills-agent_explore_codebase path=. depth=normal
+
+# Security audit with red-team lens
+use skills-agent_explore_codebase path=. depth=deep persona=red-team
+
+# Quick code-only review
+use skills-agent_explore_codebase path=. depth=quick persona=minimalist
 ```
 
-Returns architecture map, code patterns, recommendations.
+**Red team output:** Vulnerability reports, exploit paths, severity ratings, remediation steps.
 
-### Implement Feature
+### Implement Feature (with Persona)
 ```
+# Default: Professional implementation
 use skills-agent_implement_feature path=. description="add user profile page"
+
+# Security-hardened implementation
+use skills-agent_implement_feature path=. description="add auth endpoint" persona=red-team
+
+# Minimalist (just code, no explanations)
+use skills-agent_implement_feature path=. description="add cache layer" persona=minimalist
 ```
 
-Returns implementation plan, code changes, test suggestions.
+---
+
+## 🎭 Personas
+
+Personas change **how** skills are applied without modifying the underlying technical patterns.
+
+### Built-in Personas
+
+**`senior-engineer` (default)**
+- Professional, pragmatic tone
+- Explains "why", not just "what"
+- Focus: Maintainability, readability, scale-appropriate architecture
+- Output: Clear explanations with before/after examples
+
+**`red-team`**
+- Adversarial security analyst mindset
+- Assumes breach mentality
+- Focus: Vulnerabilities, exploit paths, blast radius
+- Output: `🚨 CRITICAL: SQL Injection` with PoC and remediation
+
+**`minimalist`**
+- Code-first, minimal prose
+- Skip obvious explanations
+- Focus: Working code immediately
+- Output: Brief code examples with one-line rationale
+
+### Creating Custom Personas
+
+See [`skills/personas/README.md`](skills/personas/README.md) for:
+- Persona file structure
+- YAML schema reference
+- Custom persona examples
+- Best practices
+
+**Example use cases:**
+- `startup-cto` - Pragmatic decisions, tech debt focus, MVP vs scale
+- `accessibility-auditor` - WCAG compliance, screen reader support
+- `performance-engineer` - Bottleneck analysis, optimization strategies
+- `beginner-mentor` - Educational, step-by-step, explain fundamentals
 
 ---
 

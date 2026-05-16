@@ -1,0 +1,15 @@
+# User-Defined Personas
+
+Place your custom personas here.
+
+Custom personas follow the same structure as core personas:
+- YAML frontmatter with metadata
+- Markdown content with guidelines
+- See `../README.md` for full documentation
+
+Example:
+```
+personas/user/my-custom-persona.md
+```
+
+Your custom personas will be automatically loaded and available alongside core personas.

@@ -13,16 +13,22 @@ export const SKILL_TOOLS = [
           type: 'string',
           description: 'Path to codebase to explore'
         },
-        depth: {
-          type: 'string',
-          enum: ['quick', 'normal', 'deep'],
-          default: 'normal',
-          description: 'Thoroughness level: quick (basic structure), normal (detailed analysis), deep (comprehensive)'
-        },
-        provider: {
-          type: 'string',
-          description: 'Override default provider (optional, e.g., claude-sonnet, deepseek)'
-        }
+      depth: {
+        type: 'string',
+        enum: ['quick', 'normal', 'deep'],
+        default: 'normal',
+        description: 'Thoroughness level: quick (basic structure), normal (detailed analysis), deep (comprehensive)'
+      },
+      persona: {
+        type: 'string',
+        enum: ['senior-engineer', 'red-team', 'minimalist'],
+        default: 'senior-engineer',
+        description: 'Persona lens: senior-engineer (default, professional), red-team (security focus), minimalist (code-first)'
+      },
+      provider: {
+        type: 'string',
+        description: 'Override default provider (optional, e.g., claude-sonnet, deepseek)'
+      }
       },
       required: ['path']
     }
@@ -42,14 +48,20 @@ export const SKILL_TOOLS = [
           type: 'string',
           description: 'Working directory path'
         },
-        framework: {
-          type: 'string',
-          description: 'Framework hint (auto-detected if not provided)'
-        },
-        provider: {
-          type: 'string',
-          description: 'Override default provider (optional)'
-        }
+      framework: {
+        type: 'string',
+        description: 'Framework hint (auto-detected if not provided)'
+      },
+      persona: {
+        type: 'string',
+        enum: ['senior-engineer', 'red-team', 'minimalist'],
+        default: 'senior-engineer',
+        description: 'Persona lens: senior-engineer (default, professional), red-team (security focus), minimalist (code-first)'
+      },
+      provider: {
+        type: 'string',
+        description: 'Override default provider (optional)'
+      }
       },
       required: ['description', 'path']
     }
@@ -69,6 +81,12 @@ export const SKILL_TOOLS = [
         framework: {
           type: 'string',
           description: 'Auto-load framework-specific skill (e.g., "nextjs", "nestjs")'
+        },
+        persona: {
+          type: 'string',
+          enum: ['senior-engineer', 'red-team', 'minimalist'],
+          default: 'senior-engineer',
+          description: 'Persona lens: senior-engineer (default, professional), red-team (security focus), minimalist (code-first)'
         }
       }
     }
@@ -92,10 +110,16 @@ export const SKILL_TOOLS = [
           type: 'string',
           description: 'Project name (optional - can be provided later)'
         },
-        provider: {
+        persona: {
           type: 'string',
-          description: 'Override default provider (optional)'
-        }
+          enum: ['senior-engineer', 'red-team', 'minimalist'],
+          default: 'senior-engineer',
+          description: 'Persona lens: senior-engineer (default, professional), red-team (security focus), minimalist (code-first)'
+        },
+      provider: {
+        type: 'string',
+        description: 'Override default provider (optional)'
+      }
       },
       required: ['description']
     }

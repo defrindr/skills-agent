@@ -10,7 +10,7 @@ import { Skill } from '../types/skill.js';
 import { skillParser } from './parser.js';
 import { logger } from '../utils/logger.js';
 
-const DEFAULT_SKILLS_DIR = path.join(process.cwd(), '..', 'common');
+const DEFAULT_SKILLS_DIR = path.join(process.cwd(), 'skills', 'common');
 const USER_SKILLS_DIR = path.join(homedir(), '.skills-agent', 'skills');
 
 export class SkillManager {

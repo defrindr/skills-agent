@@ -13,6 +13,7 @@ import {
 import { SKILL_TOOLS } from './tools.js';
 import { toolHandlers } from './handlers.js';
 import { skillManager } from '../skills/manager.js';
+import { personaManager } from '../skills/persona-manager.js';
 import { configManager } from '../utils/config.js';
 import { logger } from '../utils/logger.js';
 
@@ -107,6 +108,10 @@ export class SkillsMCPServer {
       // Load skills
       await skillManager.loadAll();
       logger.info(`Loaded ${skillManager.getAllSkills().length} skills`);
+
+      // Load personas
+      await personaManager.loadAll();
+      logger.info(`Loaded ${personaManager.getAllPersonas().length} personas`);
 
       // Start server with stdio transport
       const transport = new StdioServerTransport();

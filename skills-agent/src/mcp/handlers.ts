@@ -5,6 +5,7 @@
 import { Skill } from '../types/skill.js';
 import { Message } from '../types/provider.js';
 import { skillManager } from '../skills/manager.js';
+import { contextBuilder } from '../skills/context-builder.js';
 import { providerResolver } from '../providers/resolver.js';
 import { providerExecutor } from '../providers/executor.js';
 import { detectFramework } from '../utils/framework-detector.js';
@@ -12,9 +13,9 @@ import { logger } from '../utils/logger.js';
 
 export class ToolHandlers {
   async handleExploreCodebase(args: any): Promise<string> {
-    const { path, depth = 'normal', provider: overrideProvider } = args;
+    const { path, depth = 'normal', persona = 'senior-engineer', provider: overrideProvider } = args;
 
-    logger.info(`Exploring codebase at ${path} with depth: ${depth}`);
+    logger.info(`Exploring codebase at ${path} with depth: ${depth}, persona: ${persona}`);
 
     // Load codebase-explorer skill
     const skill = skillManager.getSkill('codebase-explorer');
@@ -34,7 +35,13 @@ export class ToolHandlers {
       skillsToLoad.push(...framework.skills);
     }
 
-    const context = await this.buildSkillContext(skillsToLoad);
+    // Build context with persona
+    const compressionLevel = depth === 'quick' ? 'compact' : 'full';
+    const context = await contextBuilder.build({
+      persona,
+      skills: skillsToLoad,
+      compressionLevel
+    });
 
     // Resolve provider
     const selectedProvider = providerResolver.resolve(skill, overrideProvider);
@@ -57,9 +64,9 @@ export class ToolHandlers {
   }
 
   async handleImplementFeature(args: any): Promise<string> {
-    const { description, path, framework: frameworkHint, provider: overrideProvider } = args;
+    const { description, path, framework: frameworkHint, persona = 'senior-engineer', provider: overrideProvider } = args;
 
-    logger.info(`Implementing feature: ${description.substring(0, 50)}...`);
+    logger.info(`Implementing feature: ${description.substring(0, 50)}... with persona: ${persona}`);
 
     // Load feature-architect skill
     const skill = skillManager.getSkill('feature-architect');
@@ -79,7 +86,11 @@ export class ToolHandlers {
       skillsToLoad.push(...frameworkSkills);
     }
 
-    const context = await this.buildSkillContext(skillsToLoad);
+    const context = await contextBuilder.build({
+      persona,
+      skills: skillsToLoad,
+      compressionLevel: 'full'
+    });
 
     // Resolve provider
     const selectedProvider = providerResolver.resolve(skill, overrideProvider);
@@ -102,7 +113,7 @@ export class ToolHandlers {
   }
 
   async handleLoadSkillContext(args: any): Promise<string> {
-    const { skills, framework } = args;
+    const { skills, framework, persona = 'senior-engineer' } = args;
 
     const skillsToLoad: string[] = skills || [];
     
@@ -111,7 +122,11 @@ export class ToolHandlers {
       skillsToLoad.push(...frameworkSkills);
     }
 
-    const context = await this.buildSkillContext(skillsToLoad);
+    const context = await contextBuilder.build({
+      persona,
+      skills: skillsToLoad,
+      compressionLevel: 'full'
+    });
 
     return `# Loaded Skills Context\n\n${context}\n\n**Ready to use these skills in your task!**`;
   }
@@ -121,10 +136,11 @@ export class ToolHandlers {
       description, 
       framework: frameworkHint, 
       name: projectName,
+      persona = 'senior-engineer',
       provider: overrideProvider 
     } = args;
 
-    logger.info(`Init project request: ${description.substring(0, 50)}...`);
+    logger.info(`Init project request: ${description.substring(0, 50)}... with persona: ${persona}`);
 
     // Load project-initializer skill
     const skill = skillManager.getSkill('project-initializer');
@@ -149,7 +165,11 @@ export class ToolHandlers {
       skillsToLoad.push(...frameworkSkills);
     }
 
-    const context = await this.buildSkillContext(skillsToLoad);
+    const context = await contextBuilder.build({
+      persona,
+      skills: skillsToLoad,
+      compressionLevel: 'full'
+    });
 
     // Resolve provider (prefer free tier for init)
     const selectedProvider = providerResolver.resolve(skill, overrideProvider);
@@ -393,21 +413,6 @@ Be specific with commands. Only include features they requested. Match structure
   }
 
   // Helper methods
-
-  private async buildSkillContext(skillNames: string[]): Promise<string> {
-    const skills = skillManager.getSkillsByNames(skillNames);
-    
-    if (skills.length === 0) {
-      logger.warn('No skills loaded for context');
-      return '';
-    }
-
-    const sections = skills.map(skill => {
-      return `## Skill: ${skill.name}\n\n${skill.content}`;
-    });
-
-    return sections.join('\n\n---\n\n');
-  }
 
   private async getFrameworkSkills(framework: string): Promise<string[]> {
     const skillMap: Record<string, string[]> = {
