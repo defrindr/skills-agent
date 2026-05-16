@@ -10,9 +10,6 @@ import { providerExecutor } from '../providers/executor.js';
 import { budgetTracker } from '../budget/tracker.js';
 import { detectFramework } from '../utils/framework-detector.js';
 import { logger } from '../utils/logger.js';
-import { projectGenerator } from '../templates/generator.js';
-import { templateManager } from '../templates/manager.js';
-import type { InitProjectInput } from '../types/template.js';
 
 export class ToolHandlers {
   async handleExploreCodebase(args: any): Promise<string> {
@@ -127,64 +124,89 @@ export class ToolHandlers {
   }
 
   async handleInitProject(args: any): Promise<string> {
-    const { name, framework, path = `./${name}`, features = [], provider: overrideProvider } = args;
+    const { framework, name, features = [], provider: overrideProvider } = args;
 
     logger.info(`Initializing ${framework} project: ${name}`);
 
+    // Load relevant skills
+    const skillsToLoad = ['project-readability'];
+    const frameworkSkills = await this.getFrameworkSkills(framework);
+    skillsToLoad.push(...frameworkSkills);
+
+    // Try to load project-initializer if exists
     try {
-      // Validate framework
-      const availableFrameworks = templateManager.listAvailableFrameworks();
-      if (!availableFrameworks.includes(framework)) {
-        throw new Error(
-          `Framework "${framework}" not supported. Available: ${availableFrameworks.join(', ')}`
-        );
+      const initSkill = skillManager.getSkill('project-initializer');
+      if (initSkill) {
+        skillsToLoad.push('project-initializer');
       }
-
-      // Build input
-      const input: InitProjectInput = {
-        name,
-        framework,
-        path,
-        features,
-        typescript: true,
-      };
-
-      // Generate project
-      logger.info('Generating project structure...');
-      const result = await projectGenerator.generate(input);
-
-      // Format result
-      const featuresStr = features.length > 0 ? `\n**Features:** ${features.join(', ')}` : '';
-      const nextSteps = result.nextSteps.map((step: string, i: number) => `${i + 1}. ${step}`).join('\n');
-
-      return `# ✅ Project Initialized Successfully!
-
-**Name:** ${name}
-**Framework:** ${framework}${featuresStr}
-**Path:** ${result.path}
-**Files Created:** ${result.files.length}
-
-## Next Steps
-
-${nextSteps}
-
-## What's Included
-
-- Clean project structure following \`project-readability\` principles
-- Feature-first architecture
-- TypeScript configuration
-- Linting and type checking
-- Environment variables template
-${features.includes('auth') ? '- Authentication setup with NextAuth.js\n' : ''}${features.includes('postgres') ? '- PostgreSQL database with Prisma\n' : ''}${features.includes('docker') ? '- Docker and docker-compose configuration\n' : ''}
-## Documentation
-
-Check \`README.md\` in your project for detailed setup instructions.
-
-🚀 Happy coding!`;
-    } catch (error: any) {
-      logger.error(`Project initialization failed: ${error.message}`);
-      throw new Error(`Failed to initialize project: ${error.message}`);
+    } catch {
+      // project-initializer skill optional
     }
+
+    const context = await this.buildSkillContext(skillsToLoad);
+
+    // Resolve provider (prefer free tier for init)
+    const skill = skillManager.getSkill('project-readability') || {
+      name: 'init-project',
+      metadata: { default_provider: 'deepseek', complexity: 'simple' }
+    } as any;
+    const selectedProvider = providerResolver.resolve(skill, overrideProvider);
+
+    // Build prompt
+    const featuresStr = features.length > 0 ? `\nFeatures requested: ${features.join(', ')}` : '';
+    const prompt: Message[] = [
+      {
+        role: 'system',
+        content: `You are a project initialization expert. Guide the user to setup a new ${framework} project following best practices from the loaded skills.\n\n${context}`
+      },
+      {
+        role: 'user',
+        content: `Initialize a new ${framework} project named "${name}".${featuresStr}
+
+Provide:
+1. **Recommended initialization command** (e.g., npx create-next-app, nest new, etc.)
+2. **Project structure** following project-readability principles
+3. **Setup steps** for requested features
+4. **Next commands** to get started
+
+Be specific with commands and file structures. Follow the framework's best practices from the loaded skills.`
+      }
+    ];
+
+    // Execute
+    const result = await providerExecutor.execute({
+      provider: selectedProvider,
+      messages: prompt,
+      max_tokens: 4000,
+    });
+
+    if (!result.success || !result.response) {
+      throw new Error(`Project initialization failed: ${result.error?.message}`);
+    }
+
+    // Track usage
+    await budgetTracker.track('init-project', result.response);
+
+    return `# 🚀 Project Initialization Guide: ${name}
+
+**Framework:** ${framework}
+**Features:** ${features.length > 0 ? features.join(', ') : 'Base setup'}
+**Provider:** ${result.response.provider}
+**Cost:** $${result.response.cost?.toFixed(4) || '0.0000'}
+
+---
+
+${result.response.content}
+
+---
+
+💡 **Tip:** After running the setup commands, I can help you:
+- Explore the generated codebase
+- Implement additional features
+- Setup testing, Docker, CI/CD
+- Add authentication, database, etc.
+
+Just ask!`;
   }
 
   // Helper methods

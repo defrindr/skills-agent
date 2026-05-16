@@ -28,8 +28,11 @@ export class ConfigManager {
       const content = fs.readFileSync(this.configPath, 'utf-8');
       this.config = YAML.parse(content);
     } else {
-      // Load default config
-      const defaultConfigPath = path.join(process.cwd(), 'config', 'default-config.yaml');
+      // Load default config from package directory (relative to dist/)
+      // When dist/index.js runs, __dirname is dist/, so ../config is the config folder
+      const packageRoot = path.resolve(path.dirname(new URL(import.meta.url).pathname), '../..');
+      const defaultConfigPath = path.join(packageRoot, 'config', 'default-config.yaml');
+      
       if (fs.existsSync(defaultConfigPath)) {
         const content = fs.readFileSync(defaultConfigPath, 'utf-8');
         this.config = YAML.parse(content);

@@ -21,18 +21,6 @@ async function main() {
     await skillManager.loadAll();
 
     switch (command) {
-      case 'setup':
-        // Run interactive setup
-        const { spawn } = await import('child_process');
-        const setupProcess = spawn('node', [
-          new URL('./setup.js', import.meta.url).pathname
-        ], { stdio: 'inherit' });
-        
-        setupProcess.on('close', (code) => {
-          process.exit(code || 0);
-        });
-        break;
-
       case 'list-skills':
         listSkills();
         break;
@@ -116,14 +104,12 @@ Usage:
   skills-agent <command>
 
 Commands:
-  setup            Interactive setup wizard (API keys, configuration)
   mcp              Start MCP server (for OpenCode integration)
   list-skills      List all available skills
   list-providers   List enabled providers
   budget           Show budget and usage summary
   
 Examples:
-  skills-agent setup
   skills-agent mcp
   skills-agent list-skills
   skills-agent budget

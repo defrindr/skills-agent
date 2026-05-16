@@ -9,16 +9,21 @@ import { configManager } from '../utils/config.js';
 import { logger } from '../utils/logger.js';
 
 export class ProviderResolver {
-  private config: Config;
+  private config: Config | null = null;
 
-  constructor() {
-    this.config = configManager.getConfig();
+  private ensureConfig(): Config {
+    if (!this.config) {
+      this.config = configManager.getConfig();
+    }
+    return this.config;
   }
 
   resolve(skill: Skill, overrideProvider?: string): Provider {
+    const config = this.ensureConfig();
+    
     // Priority 1: Explicit override
     if (overrideProvider) {
-      const provider = this.config.providers[overrideProvider];
+      const provider = config.providers[overrideProvider];
       if (provider && provider.enabled) {
         logger.debug(`Using override provider: ${overrideProvider}`);
         return provider;
@@ -27,9 +32,9 @@ export class ProviderResolver {
     }
 
     // Priority 2: Skill-specific override from config
-    const skillOverride = this.config.skill_overrides?.[skill.name];
+    const skillOverride = config.skill_overrides?.[skill.name];
     if (skillOverride?.force_provider) {
-      const provider = this.config.providers[skillOverride.force_provider];
+      const provider = config.providers[skillOverride.force_provider];
       if (provider && provider.enabled) {
         logger.debug(`Using skill override provider: ${skillOverride.force_provider}`);
         return provider;
@@ -39,7 +44,7 @@ export class ProviderResolver {
     // Priority 3: Skill's preferred providers (from SKILL.md)
     if (skill.metadata.providers && skill.metadata.providers.length > 0) {
       for (const pref of skill.metadata.providers) {
-        const provider = this.config.providers[pref.name];
+        const provider = config.providers[pref.name];
         if (provider && provider.enabled) {
           logger.debug(`Using skill preferred provider: ${pref.name}`);
           return provider;
@@ -57,14 +62,14 @@ export class ProviderResolver {
     }
 
     // Priority 5: Global default tier
-    const defaultProvider = this.getProviderByTier(this.config.global.default_tier);
+    const defaultProvider = this.getProviderByTier(config.global.default_tier);
     if (defaultProvider) {
       logger.debug(`Using default tier provider: ${defaultProvider.name}`);
       return defaultProvider;
     }
 
     // Fallback: First enabled provider
-    const fallbackProvider = Object.values(this.config.providers).find(p => p.enabled);
+    const fallbackProvider = Object.values(config.providers).find(p => p.enabled);
     if (fallbackProvider) {
       logger.warn(`Using fallback provider: ${fallbackProvider.name}`);
       return fallbackProvider;
@@ -74,7 +79,8 @@ export class ProviderResolver {
   }
 
   private getProviderByTier(tier: ProviderTier): Provider | null {
-    const providers = Object.values(this.config.providers)
+    const config = this.ensureConfig();
+    const providers = Object.values(config.providers)
       .filter(p => p.enabled && p.tier === tier);
 
     if (providers.length === 0) {
@@ -82,7 +88,7 @@ export class ProviderResolver {
     }
 
     // If prefer_speed is enabled, sort by model speed (heuristic)
-    if (this.config.global.prefer_speed) {
+    if (config.global.prefer_speed) {
       // Groq models are typically fastest
       const groqProvider = providers.find(p => p.name.includes('groq'));
       if (groqProvider) return groqProvider;
@@ -93,7 +99,8 @@ export class ProviderResolver {
   }
 
   getNextProvider(currentProvider: Provider): Provider | null {
-    const allProviders = Object.values(this.config.providers)
+    const config = this.ensureConfig();
+    const allProviders = Object.values(config.providers)
       .filter(p => p.enabled && p.name !== currentProvider.name);
 
     // Try same tier first

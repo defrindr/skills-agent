@@ -1,354 +1,276 @@
 #!/usr/bin/env node
 
 /**
- * Interactive setup script for Skills Agent
- * One-command installation with prompts
+ * Skills Agent Setup Script
+ * Auto-configures everything for OpenCode integration
  */
 
-import * as fs from 'fs';
-import * as path from 'path';
-import * as readline from 'readline';
+import fs from 'fs';
+import path from 'path';
+import { homedir } from 'os';
 import { execSync } from 'child_process';
-import { fileURLToPath } from 'url';
-import { dirname } from 'path';
-import * as yaml from 'yaml';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+const COLORS = {
+  reset: '\x1b[0m',
+  green: '\x1b[32m',
+  yellow: '\x1b[33m',
+  blue: '\x1b[34m',
+  red: '\x1b[31m',
+};
 
-interface SetupConfig {
-  deepseekApiKey?: string;
-  groqApiKey?: string;
-  claudeApiKey?: string;
-  skillsDir?: string;
-  dailyBudgetLimit?: number;
+function log(message: string, color = COLORS.reset) {
+  console.log(`${color}${message}${COLORS.reset}`);
 }
 
-class InteractiveSetup {
-  private rl: readline.Interface;
+function success(message: string) {
+  log(`✅ ${message}`, COLORS.green);
+}
 
-  constructor() {
-    this.rl = readline.createInterface({
-      input: process.stdin,
-      output: process.stdout,
-    });
-  }
+function info(message: string) {
+  log(`ℹ️  ${message}`, COLORS.blue);
+}
 
-  async run(): Promise<void> {
-    console.log('\n🚀 Skills Agent Setup\n');
-    console.log('This will configure Skills Agent for use with OpenCode.\n');
+function warn(message: string) {
+  log(`⚠️  ${message}`, COLORS.yellow);
+}
 
-    try {
-      // Check if already configured
-      const homeDir = process.env.HOME || process.env.USERPROFILE || '';
-      const configDir = path.join(homeDir, '.skills-agent');
-      const configPath = path.join(configDir, 'config.yaml');
+function error(message: string) {
+  log(`❌ ${message}`, COLORS.red);
+}
 
-      if (fs.existsSync(configPath)) {
-        const reconfigure = await this.confirm(
-          'Skills Agent is already configured. Reconfigure?'
-        );
-        if (!reconfigure) {
-          console.log('Setup cancelled.');
-          this.rl.close();
-          return;
-        }
+// Get package installation directory
+function getPackageRoot(): string {
+  // When installed globally via npm, __dirname will be in node_modules
+  // We need to find the actual package root
+  const currentDir = path.dirname(new URL(import.meta.url).pathname);
+  
+  // Try to find package.json upwards
+  let dir = currentDir;
+  while (dir !== '/') {
+    if (fs.existsSync(path.join(dir, 'package.json'))) {
+      const pkg = JSON.parse(fs.readFileSync(path.join(dir, 'package.json'), 'utf-8'));
+      if (pkg.name === '@defrindr/skills-agent') {
+        return dir;
       }
-
-      // Collect configuration
-      const config = await this.collectConfig();
-
-      // Create config directory
-      if (!fs.existsSync(configDir)) {
-        fs.mkdirSync(configDir, { recursive: true });
-      }
-
-      // Write config file
-      await this.writeConfig(configPath, config);
-
-      // Setup MCP config for OpenCode
-      const setupMCP = await this.confirm(
-        'Setup OpenCode MCP configuration automatically?'
-      );
-
-      if (setupMCP) {
-        await this.setupOpenCodeMCP(config);
-      }
-
-      // Test connection
-      const testConnection = await this.confirm('Test provider connections?');
-      if (testConnection) {
-        await this.testProviders(config);
-      }
-
-      console.log('\n✅ Setup complete!\n');
-      console.log('Next steps:');
-      console.log('  1. Restart OpenCode (if MCP was configured)');
-      console.log('  2. Try: @copilot explore this codebase');
-      console.log('  3. Try: @copilot init new nextjs project\n');
-      console.log('For help: skills-agent --help\n');
-    } catch (error: any) {
-      console.error(`\n❌ Setup failed: ${error.message}\n`);
-      process.exit(1);
-    } finally {
-      this.rl.close();
     }
+    dir = path.dirname(dir);
   }
+  
+  return currentDir;
+}
 
-  private async collectConfig(): Promise<SetupConfig> {
-    const config: SetupConfig = {};
+// Detect node executable path (NVM support)
+function getNodePath(): string {
+  try {
+    const nodePath = execSync('which node', { encoding: 'utf-8' }).trim();
+    return nodePath;
+  } catch {
+    return 'node'; // fallback
+  }
+}
 
-    console.log('📝 API Keys Configuration\n');
-    console.log('Get free API keys:');
-    console.log('  - DeepSeek: https://platform.deepseek.com');
-    console.log('  - Groq: https://console.groq.com');
-    console.log('  - Claude (optional): https://console.anthropic.com\n');
-
-    // DeepSeek (recommended)
-    config.deepseekApiKey = await this.prompt(
-      'DeepSeek API Key (recommended, free)',
-      process.env.DEEPSEEK_API_KEY
-    );
-
-    // Groq (optional, free)
-    config.groqApiKey = await this.prompt(
-      'Groq API Key (optional, free)',
-      process.env.GROQ_API_KEY
-    );
-
-    // Claude (optional, premium)
-    config.claudeApiKey = await this.prompt(
-      'Claude API Key (optional, premium)',
-      process.env.ANTHROPIC_API_KEY
-    );
-
-    if (!config.deepseekApiKey && !config.groqApiKey && !config.claudeApiKey) {
-      throw new Error('At least one API key is required');
+// Step 1: Link skills to ~/.agents/skills/
+function setupSkills() {
+  info('Setting up skills...');
+  
+  const packageRoot = getPackageRoot();
+  const skillsSource = path.join(packageRoot, 'skills');
+  const skillsTarget = path.join(homedir(), '.agents', 'skills');
+  
+  if (!fs.existsSync(skillsSource)) {
+    error(`Skills directory not found: ${skillsSource}`);
+    process.exit(1);
+  }
+  
+  // Create target directory
+  if (!fs.existsSync(skillsTarget)) {
+    fs.mkdirSync(skillsTarget, { recursive: true });
+  }
+  
+  // Link all skill categories
+  const categories = ['common', 'backend', 'frontend', 'mobile'];
+  let linkedCount = 0;
+  
+  for (const category of categories) {
+    const categoryPath = path.join(skillsSource, category);
+    if (!fs.existsSync(categoryPath)) {
+      warn(`Category not found: ${category}`);
+      continue;
     }
-
-    console.log('\n⚙️  Configuration\n');
-
-    // Skills directory
-    const defaultSkillsDir = path.resolve(__dirname, '../../..');
-    config.skillsDir = await this.prompt(
-      'Skills directory path',
-      defaultSkillsDir
-    );
-
-    // Budget limit
-    const budgetStr = await this.prompt('Daily budget limit (USD)', '5.00');
-    config.dailyBudgetLimit = parseFloat(budgetStr) || 5.0;
-
-    return config;
-  }
-
-  private async writeConfig(configPath: string, config: SetupConfig): Promise<void> {
-    const configContent = {
-      providers: {
-        default: config.deepseekApiKey ? 'deepseek' : 
-                 config.groqApiKey ? 'groq-mixtral' : 
-                 'claude-sonnet',
-        
-        deepseek: config.deepseekApiKey ? {
-          enabled: true,
-          api_key: config.deepseekApiKey,
-          base_url: 'https://api.deepseek.com/v1',
-          model: 'deepseek-chat',
-        } : undefined,
-
-        'groq-mixtral': config.groqApiKey ? {
-          enabled: true,
-          api_key: config.groqApiKey,
-          base_url: 'https://api.groq.com/openai/v1',
-          model: 'mixtral-8x7b-32768',
-        } : undefined,
-
-        'claude-sonnet': config.claudeApiKey ? {
-          enabled: true,
-          api_key: config.claudeApiKey,
-          model: 'claude-sonnet-4-20250514',
-        } : undefined,
-      },
-
-      budget: {
-        enabled: true,
-        daily_limit: config.dailyBudgetLimit,
-        per_request_limit: 0.5,
-        warning_threshold: 0.8,
-      },
-
-      skills: {
-        dir: config.skillsDir,
-      },
-    };
-
-    // Remove undefined providers
-    Object.keys(configContent.providers).forEach(key => {
-      if (configContent.providers[key as keyof typeof configContent.providers] === undefined) {
-        delete configContent.providers[key as keyof typeof configContent.providers];
-      }
-    });
-
-    const yamlContent = yaml.stringify(configContent);
-    fs.writeFileSync(configPath, yamlContent, 'utf-8');
-
-    console.log(`\n✅ Configuration written to: ${configPath}`);
-  }
-
-  private async setupOpenCodeMCP(config: SetupConfig): Promise<void> {
-    const homeDir = process.env.HOME || process.env.USERPROFILE || '';
-    const opencodeDir = path.join(homeDir, '.opencode');
-    const mcpConfigPath = path.join(opencodeDir, 'mcp-config.json');
-
-    // Create .opencode directory if not exists
-    if (!fs.existsSync(opencodeDir)) {
-      fs.mkdirSync(opencodeDir, { recursive: true });
-    }
-
-    // Build MCP config
-    const skillsAgentPath = path.resolve(__dirname, '../index.js');
     
-    const mcpConfig = {
-      mcpServers: {
-        'skills-agent': {
-          command: 'node',
-          args: [skillsAgentPath],
-          env: {
-            SKILLS_DIR: config.skillsDir || path.resolve(__dirname, '../../..'),
-            ...(config.deepseekApiKey && { DEEPSEEK_API_KEY: config.deepseekApiKey }),
-            ...(config.groqApiKey && { GROQ_API_KEY: config.groqApiKey }),
-            ...(config.claudeApiKey && { ANTHROPIC_API_KEY: config.claudeApiKey }),
-          },
-        },
-      },
-    };
-
-    // Merge with existing config if exists
-    let existingConfig: any = {};
-    if (fs.existsSync(mcpConfigPath)) {
-      try {
-        existingConfig = JSON.parse(fs.readFileSync(mcpConfigPath, 'utf-8'));
-      } catch (error) {
-        console.warn('⚠️  Could not parse existing MCP config, will overwrite');
-      }
-    }
-
-    const mergedConfig = {
-      ...existingConfig,
-      mcpServers: {
-        ...(existingConfig.mcpServers || {}),
-        ...mcpConfig.mcpServers,
-      },
-    };
-
-    fs.writeFileSync(mcpConfigPath, JSON.stringify(mergedConfig, null, 2), 'utf-8');
-
-    console.log(`\n✅ OpenCode MCP config updated: ${mcpConfigPath}`);
-    console.log('⚠️  Please restart OpenCode for changes to take effect');
-  }
-
-  private async testProviders(config: SetupConfig): Promise<void> {
-    console.log('\n🧪 Testing provider connections...\n');
-
-    const tests: Array<{ name: string; test: () => Promise<boolean> }> = [];
-
-    if (config.deepseekApiKey) {
-      tests.push({
-        name: 'DeepSeek',
-        test: async () => this.testOpenAIProvider(
-          'https://api.deepseek.com/v1',
-          config.deepseekApiKey!
-        ),
-      });
-    }
-
-    if (config.groqApiKey) {
-      tests.push({
-        name: 'Groq',
-        test: async () => this.testOpenAIProvider(
-          'https://api.groq.com/openai/v1',
-          config.groqApiKey!
-        ),
-      });
-    }
-
-    if (config.claudeApiKey) {
-      tests.push({
-        name: 'Claude',
-        test: async () => this.testAnthropicProvider(config.claudeApiKey!),
-      });
-    }
-
-    for (const { name, test } of tests) {
-      try {
-        const success = await test();
-        if (success) {
-          console.log(`  ✅ ${name}: Connected`);
-        } else {
-          console.log(`  ❌ ${name}: Failed`);
+    const skills = fs.readdirSync(categoryPath);
+    
+    for (const skill of skills) {
+      const skillPath = path.join(categoryPath, skill);
+      const targetPath = path.join(skillsTarget, skill);
+      
+      // Skip if not a directory or if SKILL.md doesn't exist
+      if (!fs.statSync(skillPath).isDirectory()) continue;
+      if (!fs.existsSync(path.join(skillPath, 'SKILL.md'))) continue;
+      
+      // Remove existing symlink/directory
+      if (fs.existsSync(targetPath)) {
+        try {
+          if (fs.lstatSync(targetPath).isSymbolicLink()) {
+            fs.unlinkSync(targetPath);
+          } else {
+            // If it's a real directory, skip (user might have custom setup)
+            warn(`Skipping ${skill}: exists as real directory`);
+            continue;
+          }
+        } catch (err: any) {
+          warn(`Failed to remove existing ${skill}: ${err.message}`);
+          continue;
         }
-      } catch (error: any) {
-        console.log(`  ❌ ${name}: ${error.message}`);
+      }
+      
+      // Create symlink
+      try {
+        fs.symlinkSync(skillPath, targetPath, 'dir');
+        linkedCount++;
+      } catch (err: any) {
+        warn(`Failed to link ${skill}: ${err.message}`);
       }
     }
   }
+  
+  success(`Linked ${linkedCount} skills to ${skillsTarget}`);
+}
 
-  private async testOpenAIProvider(baseURL: string, apiKey: string): Promise<boolean> {
+// Step 2: Configure OpenCode MCP server
+function setupOpenCodeMCP() {
+  info('Configuring OpenCode MCP server...');
+  
+  const packageRoot = getPackageRoot();
+  const serverPath = path.join(packageRoot, 'dist', 'index.js');
+  const nodePath = getNodePath();
+  const skillsDir = path.join(packageRoot, 'skills');
+  
+  if (!fs.existsSync(serverPath)) {
+    error(`MCP server not found: ${serverPath}`);
+    error('Run "npm run build" first');
+    process.exit(1);
+  }
+  
+  const opencodeConfigDir = path.join(homedir(), '.config', 'opencode');
+  const opencodeConfigPath = path.join(opencodeConfigDir, 'opencode.json');
+  
+  // Create config directory
+  if (!fs.existsSync(opencodeConfigDir)) {
+    fs.mkdirSync(opencodeConfigDir, { recursive: true });
+  }
+  
+  // Load existing config or create new
+  let config: any = {
+    "$schema": "https://opencode.ai/config.json"
+  };
+  
+  if (fs.existsSync(opencodeConfigPath)) {
     try {
-      const response = await fetch(`${baseURL}/models`, {
-        headers: {
-          'Authorization': `Bearer ${apiKey}`,
-        },
-      });
-      return response.ok;
+      config = JSON.parse(fs.readFileSync(opencodeConfigPath, 'utf-8'));
     } catch {
-      return false;
+      warn('Failed to parse existing OpenCode config, creating new one');
     }
   }
+  
+  // Add MCP server config
+  if (!config.mcp) {
+    config.mcp = {};
+  }
+  
+  config.mcp['skills-agent'] = {
+    type: 'local',
+    command: [nodePath, serverPath],
+    environment: {
+      SKILLS_DIR: skillsDir
+    },
+    enabled: true,
+    timeout: 10000
+  };
+  
+  // Write config
+  fs.writeFileSync(opencodeConfigPath, JSON.stringify(config, null, 2));
+  
+  success(`OpenCode MCP configured at ${opencodeConfigPath}`);
+}
 
-  private async testAnthropicProvider(apiKey: string): Promise<boolean> {
+// Step 3: Verify installation
+function verifyInstallation() {
+  info('Verifying installation...');
+  
+  const checks = [
+    {
+      name: 'Skills directory',
+      path: path.join(homedir(), '.agents', 'skills'),
+      check: (p: string) => fs.existsSync(p) && fs.readdirSync(p).length > 0
+    },
+    {
+      name: 'OpenCode config',
+      path: path.join(homedir(), '.config', 'opencode', 'opencode.json'),
+      check: (p: string) => {
+        if (!fs.existsSync(p)) return false;
+        const config = JSON.parse(fs.readFileSync(p, 'utf-8'));
+        return config.mcp && config.mcp['skills-agent'];
+      }
+    },
+    {
+      name: 'MCP server',
+      path: path.join(getPackageRoot(), 'dist', 'index.js'),
+      check: (p: string) => fs.existsSync(p)
+    }
+  ];
+  
+  let allPassed = true;
+  
+  for (const check of checks) {
     try {
-      const response = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: {
-          'x-api-key': apiKey,
-          'anthropic-version': '2023-06-01',
-          'content-type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: 'claude-sonnet-4-20250514',
-          max_tokens: 10,
-          messages: [{ role: 'user', content: 'test' }],
-        }),
-      });
-      return response.ok;
-    } catch {
-      return false;
+      if (check.check(check.path)) {
+        success(`${check.name}: OK`);
+      } else {
+        error(`${check.name}: FAILED`);
+        allPassed = false;
+      }
+    } catch (err) {
+      error(`${check.name}: ERROR`);
+      allPassed = false;
     }
   }
+  
+  return allPassed;
+}
 
-  private prompt(question: string, defaultValue?: string): Promise<string> {
-    return new Promise((resolve) => {
-      const suffix = defaultValue ? ` [${defaultValue}]` : '';
-      this.rl.question(`${question}${suffix}: `, (answer) => {
-        resolve(answer.trim() || defaultValue || '');
-      });
-    });
-  }
-
-  private confirm(question: string): Promise<boolean> {
-    return new Promise((resolve) => {
-      this.rl.question(`${question} [Y/n]: `, (answer) => {
-        const normalized = answer.trim().toLowerCase();
-        resolve(normalized === '' || normalized === 'y' || normalized === 'yes');
-      });
-    });
+// Main setup
+async function main() {
+  log('\n🚀 Skills Agent Setup\n', COLORS.blue);
+  
+  try {
+    // Step 1: Setup skills
+    setupSkills();
+    
+    // Step 2: Configure OpenCode MCP
+    setupOpenCodeMCP();
+    
+    // Step 3: Verify
+    log('');
+    const verified = verifyInstallation();
+    
+    if (verified) {
+      log('\n✨ Setup complete!\n', COLORS.green);
+      info('Next steps:');
+      console.log('  1. Restart OpenCode (Quit + reopen)');
+      console.log('  2. Run: opencode mcp list');
+      console.log('  3. Use tools: skills-agent_init_project, skills-agent_explore_codebase, etc.\n');
+      
+      info('Documentation:');
+      console.log(`  ${path.join(getPackageRoot(), 'MCP-OPENCODE.md')}\n`);
+    } else {
+      error('\nSetup completed with errors. Check messages above.');
+      process.exit(1);
+    }
+  } catch (err: any) {
+    error(`\nSetup failed: ${err.message}`);
+    process.exit(1);
   }
 }
 
-// Run setup
-const setup = new InteractiveSetup();
-setup.run().catch((error) => {
-  console.error('Setup failed:', error);
-  process.exit(1);
-});
+main();
