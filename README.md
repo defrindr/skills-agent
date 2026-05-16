@@ -14,8 +14,10 @@ Auto-configures everything. Restart OpenCode after install.
 
 ### Uninstall
 
+After installation, run:
+
 ```bash
-curl -fsSL https://raw.githubusercontent.com/defrindr/skills-agent/main/uninstall.sh | bash
+bash ~/.skills-agent/skills-agent/uninstall.sh
 ```
 
 Removes installation, symlinks, and OpenCode MCP configuration.

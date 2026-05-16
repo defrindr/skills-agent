@@ -1,8 +1,8 @@
 #!/bin/bash
 
-# Skills Agent Uninstaller (Standalone)
-# This file is for development/manual use.
-# After installation, use: bash ~/.skills-agent/skills-agent/uninstall.sh
+# Skills Agent Uninstaller
+# Usage: bash ~/.skills-agent/skills-agent/uninstall.sh
+# Or from repo: bash skills-agent/uninstall.sh
 
 set -e
 
@@ -158,4 +158,5 @@ echo "  3. Optional: Remove PATH entry from $SHELL_RC (if added)"
 echo ""
 echo -e "${BLUE}To reinstall:${RESET}"
 echo "  ${BOLD}curl -fsSL https://raw.githubusercontent.com/defrindr/skills-agent/main/install.sh | bash${RESET}"
+echo "  ${YELLOW}(Note: Requires public repo or git clone manually)${RESET}"
 echo ""

@@ -21,8 +21,10 @@ Auto-configures:
 
 ### Uninstall
 
+After installation, run:
+
 ```bash
-curl -fsSL https://raw.githubusercontent.com/defrindr/skills-agent/main/uninstall.sh | bash
+bash ~/.skills-agent/skills-agent/uninstall.sh
 ```
 
 Completely removes:
@@ -230,12 +232,12 @@ Should have:
 
 ### Uninstall / Clean Reinstall
 
-**Option 1: Use uninstall script (Recommended)**
+**Use the bundled uninstall script:**
 ```bash
-curl -fsSL https://raw.githubusercontent.com/defrindr/skills-agent/main/uninstall.sh | bash
+bash ~/.skills-agent/skills-agent/uninstall.sh
 ```
 
-**Option 2: Manual removal**
+**Manual removal (if script not available):**
 ```bash
 # Remove installation
 rm -rf ~/.skills-agent
