@@ -8,16 +8,26 @@
 
 ## ⚡ Quick Install
 
+**Latest release (Recommended):**
+
 ```bash
-curl -fsSL https://raw.githubusercontent.com/defrindr/skills-agent/main/install.sh | bash
+curl -fsSL https://github.com/defrindr/skills-agent/releases/latest/download/install.sh | bash
+```
+
+**Specific version:**
+
+```bash
+SKILLS_AGENT_VERSION=v0.1.0 curl -fsSL https://github.com/defrindr/skills-agent/releases/latest/download/install.sh | bash
 ```
 
 Auto-configures:
-- ✅ Clones repo to `~/.skills-agent`
+- ✅ Downloads from GitHub Releases (no git auth required)
 - ✅ Builds & installs dependencies
 - ✅ Links 21 skills to `~/.agents/skills/`
 - ✅ Configures OpenCode MCP server
 - ✅ Ready to use!
+
+**Note:** Works with private repositories via GitHub Releases.
 
 ### Uninstall
 
@@ -39,8 +49,16 @@ Completely removes:
 
 ### 1. Install
 
+**Latest version:**
+
 ```bash
-curl -fsSL https://raw.githubusercontent.com/defrindr/skills-agent/main/install.sh | bash
+curl -fsSL https://github.com/defrindr/skills-agent/releases/latest/download/install.sh | bash
+```
+
+**Specific version:**
+
+```bash
+SKILLS_AGENT_VERSION=v0.1.0 curl -fsSL https://github.com/defrindr/skills-agent/releases/latest/download/install.sh | bash
 ```
 
 You'll see:

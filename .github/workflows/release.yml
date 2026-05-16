@@ -1,0 +1,131 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'  # Trigger on version tags: v0.1.0, v1.0.0, etc.
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: 'skills-agent/package-lock.json'
+
+      - name: Install dependencies
+        working-directory: skills-agent
+        run: npm ci
+
+      - name: Build
+        working-directory: skills-agent
+        run: npm run build
+
+      - name: Create release archive
+        run: |
+          # Create archive excluding unnecessary files
+          tar -czf skills-agent-${GITHUB_REF_NAME}.tar.gz \
+            --exclude='node_modules' \
+            --exclude='.git' \
+            --exclude='.github' \
+            --exclude='*.log' \
+            --exclude='.DS_Store' \
+            skills-agent/
+          
+          # Verify archive contents
+          echo "Archive contents:"
+          tar -tzf skills-agent-${GITHUB_REF_NAME}.tar.gz | head -20
+          
+          # Get archive size
+          ls -lh skills-agent-${GITHUB_REF_NAME}.tar.gz
+
+      - name: Generate release notes
+        id: release_notes
+        run: |
+          VERSION=${GITHUB_REF_NAME}
+          
+          # Extract changes from recent commits
+          echo "NOTES<<EOF" >> $GITHUB_OUTPUT
+          echo "## What's Changed" >> $GITHUB_OUTPUT
+          echo "" >> $GITHUB_OUTPUT
+          
+          # Get commits since last tag
+          PREV_TAG=$(git describe --tags --abbrev=0 ${GITHUB_REF_NAME}^ 2>/dev/null || echo "")
+          if [ -n "$PREV_TAG" ]; then
+            git log ${PREV_TAG}..${GITHUB_REF_NAME} --pretty=format:"- %s (%h)" >> $GITHUB_OUTPUT
+          else
+            git log --pretty=format:"- %s (%h)" --max-count=10 >> $GITHUB_OUTPUT
+          fi
+          
+          echo "" >> $GITHUB_OUTPUT
+          echo "" >> $GITHUB_OUTPUT
+          echo "## Installation" >> $GITHUB_OUTPUT
+          echo "" >> $GITHUB_OUTPUT
+          echo '```bash' >> $GITHUB_OUTPUT
+          echo "curl -fsSL https://github.com/defrindr/skills-agent/releases/download/${VERSION}/install.sh | bash" >> $GITHUB_OUTPUT
+          echo '```' >> $GITHUB_OUTPUT
+          echo "" >> $GITHUB_OUTPUT
+          echo "## What's Included" >> $GITHUB_OUTPUT
+          echo "" >> $GITHUB_OUTPUT
+          echo "- 21 AI agent skills (Bahasa Indonesia)" >> $GITHUB_OUTPUT
+          echo "- MCP server for OpenCode integration" >> $GITHUB_OUTPUT
+          echo "- Auto-configuration setup script" >> $GITHUB_OUTPUT
+          echo "- Uninstall script included" >> $GITHUB_OUTPUT
+          echo "" >> $GITHUB_OUTPUT
+          echo "## Requirements" >> $GITHUB_OUTPUT
+          echo "" >> $GITHUB_OUTPUT
+          echo "- Node.js 18+" >> $GITHUB_OUTPUT
+          echo "- npm 9+" >> $GITHUB_OUTPUT
+          echo "- git" >> $GITHUB_OUTPUT
+          echo "- OpenCode (for MCP integration)" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          name: Skills Agent ${{ github.ref_name }}
+          body: ${{ steps.release_notes.outputs.NOTES }}
+          draft: false
+          prerelease: false
+          files: |
+            skills-agent-${{ github.ref_name }}.tar.gz
+            install.sh
+            uninstall.sh
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload archive artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: skills-agent-${{ github.ref_name }}
+          path: skills-agent-${{ github.ref_name }}.tar.gz
+          retention-days: 90
+
+      - name: Release summary
+        run: |
+          echo "## Release Created! 🚀" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Version:** ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Install command:**" >> $GITHUB_STEP_SUMMARY
+          echo '```bash' >> $GITHUB_STEP_SUMMARY
+          echo "curl -fsSL https://github.com/defrindr/skills-agent/releases/download/${{ github.ref_name }}/install.sh | bash" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Assets:**" >> $GITHUB_STEP_SUMMARY
+          echo "- skills-agent-${{ github.ref_name }}.tar.gz" >> $GITHUB_STEP_SUMMARY
+          echo "- install.sh" >> $GITHUB_STEP_SUMMARY
+          echo "- uninstall.sh" >> $GITHUB_STEP_SUMMARY

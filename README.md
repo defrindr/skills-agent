@@ -6,11 +6,21 @@ AI agent skills for OpenCode + Skills Agent MCP server.
 
 ## ⚡ Quick Install
 
+**Latest release (Recommended):**
+
 ```bash
-curl -fsSL https://raw.githubusercontent.com/defrindr/skills-agent/main/install.sh | bash
+curl -fsSL https://github.com/defrindr/skills-agent/releases/latest/download/install.sh | bash
+```
+
+**Specific version:**
+
+```bash
+SKILLS_AGENT_VERSION=v0.1.0 curl -fsSL https://github.com/defrindr/skills-agent/releases/latest/download/install.sh | bash
 ```
 
 Auto-configures everything. Restart OpenCode after install.
+
+**Note:** Installs from GitHub Releases (no git auth required). Works even with private repository.
 
 ### Uninstall
 
@@ -28,7 +38,12 @@ Removes installation, symlinks, and OpenCode MCP configuration.
 
 ```
 skills/
-├── install.sh               # One-command installer
+├── .github/
+│   └── workflows/
+│       └── release.yml      # Auto-release CI/CD
+├── scripts/
+│   └── prepare-release.sh   # Local release testing
+├── install.sh               # One-command installer (from releases)
 ├── uninstall.sh             # One-command uninstaller
 ├── AGENTS.md                # Repository guidelines
 └── skills-agent/            # MCP server package
@@ -74,12 +89,38 @@ use skills-agent_implement_feature to add user auth
 
 ## 🔧 Development
 
+**Clone repository:**
+
 ```bash
-git clone https://github.com/defrindr/skills-agent.git
+git clone git@github.com:defrindr/skills-agent.git
 cd skills-agent/skills-agent
 npm install
 npm run build
 npm run setup
+```
+
+**Create a release:**
+
+```bash
+# Test release locally
+bash scripts/prepare-release.sh v0.1.0
+
+# Create git tag and push
+git tag v0.1.0
+git push origin v0.1.0
+
+# GitHub Actions will automatically create the release
+```
+
+**Manual release (if needed):**
+
+```bash
+gh release create v0.1.0 \
+  skills-agent-v0.1.0.tar.gz \
+  install.sh \
+  uninstall.sh \
+  --title "Skills Agent v0.1.0" \
+  --notes "See release notes"
 ```
 
 ---
