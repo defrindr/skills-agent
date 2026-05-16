@@ -11,6 +11,7 @@ This workspace is a collection of **AI agent skills** — reusable, on-demand wo
 | Category | Path | Purpose |
 |---|---|---|
 | Common | `common/project-readability/` | Master readability guide — all other skills defer to this |
+| Common | `common/code-health/` | Daily code health: performance & security audit (application-level) |
 | Backend | `backend/expressjs-readability/` | Express.js + Node.js readability rules |
 | Backend | `backend/fastapi-readability/` | FastAPI (Python) readability rules |
 | Backend | `backend/golang-readability/` | Go (Gin / Fiber / Echo) readability rules |
