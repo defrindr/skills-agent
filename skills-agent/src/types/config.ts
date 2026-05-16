@@ -10,7 +10,6 @@ export interface Config {
   };
   global: GlobalConfig;
   skill_overrides?: SkillOverrides;
-  budget?: BudgetConfig;
 }
 
 export interface GlobalConfig {
@@ -26,21 +25,4 @@ export interface SkillOverrides {
     prefer_tier?: ProviderTier;
     providers?: string[];
   };
-}
-
-export interface BudgetConfig {
-  daily_limit?: number;
-  warn_threshold?: number;
-  track_usage: boolean;
-}
-
-export interface UsageRecord {
-  timestamp: number;
-  provider: string;
-  model: string;
-  skill: string;
-  prompt_tokens: number;
-  completion_tokens: number;
-  total_tokens: number;
-  cost: number;
 }

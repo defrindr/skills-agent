@@ -7,7 +7,6 @@ import { Message } from '../types/provider.js';
 import { skillManager } from '../skills/manager.js';
 import { providerResolver } from '../providers/resolver.js';
 import { providerExecutor } from '../providers/executor.js';
-import { budgetTracker } from '../budget/tracker.js';
 import { detectFramework } from '../utils/framework-detector.js';
 import { logger } from '../utils/logger.js';
 
@@ -54,9 +53,6 @@ export class ToolHandlers {
       throw new Error(`Exploration failed: ${result.error?.message}`);
     }
 
-    // Track usage
-    await budgetTracker.track('codebase-explorer', result.response);
-
     return this.formatExploreResult(result.response, path, depth);
   }
 
@@ -101,9 +97,6 @@ export class ToolHandlers {
     if (!result.success || !result.response) {
       throw new Error(`Feature implementation failed: ${result.error?.message}`);
     }
-
-    // Track usage
-    await budgetTracker.track('feature-architect', result.response);
 
     return this.formatFeatureResult(result.response);
   }
@@ -187,9 +180,6 @@ ${context}`
     if (!result.success || !result.response) {
       throw new Error(`Project initialization failed: ${result.error?.message}`);
     }
-
-    // Track usage
-    await budgetTracker.track('init-project', result.response);
 
     return `# 🚀 Project Setup Guide
 

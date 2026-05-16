@@ -7,7 +7,6 @@
 import dotenv from 'dotenv';
 import { skillManager } from './skills/manager.js';
 import { configManager } from './utils/config.js';
-import { budgetTracker } from './budget/tracker.js';
 import { logger } from './utils/logger.js';
 
 dotenv.config();
@@ -27,10 +26,6 @@ async function main() {
 
       case 'list-providers':
         listProviders();
-        break;
-
-      case 'budget':
-        showBudget();
         break;
 
       case 'mcp':
@@ -75,27 +70,6 @@ function listProviders() {
   }
 }
 
-function showBudget() {
-  const summary = budgetTracker.getSummary(7);
-  console.log('\n💰 Budget Summary (Last 7 days):\n');
-  console.log(`  Total Spent: $${summary.total.toFixed(4)}`);
-  console.log(`  Total Tokens: ${summary.total_tokens.toLocaleString()}`);
-  
-  console.log('\n  By Provider:');
-  for (const [provider, cost] of Object.entries(summary.by_provider)) {
-    console.log(`    ${provider}: $${cost.toFixed(4)}`);
-  }
-  
-  console.log('\n  By Skill:');
-  for (const [skill, cost] of Object.entries(summary.by_skill)) {
-    console.log(`    ${skill}: $${cost.toFixed(4)}`);
-  }
-  
-  const todaySpent = budgetTracker.getTodaySpending();
-  console.log(`\n  Today: $${todaySpent.toFixed(4)}`);
-  console.log('');
-}
-
 function showHelp() {
   console.log(`
 Skills Agent CLI
@@ -107,12 +81,11 @@ Commands:
   mcp              Start MCP server (for OpenCode integration)
   list-skills      List all available skills
   list-providers   List enabled providers
-  budget           Show budget and usage summary
   
 Examples:
   skills-agent mcp
   skills-agent list-skills
-  skills-agent budget
+  skills-agent list-providers
   `);
 }
 
