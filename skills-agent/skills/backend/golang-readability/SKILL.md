@@ -129,21 +129,87 @@ func (r *Repository) UpdateOrderStatus(ctx context.Context, orderID string, stat
 
 ---
 
-## 1. Database Work — Defer to Database Skills
+## 1. Database Work — DATABASE-FIRST PROTOCOL
 
-**PENTING**: Skill ini untuk **application code** (handlers, services, repositories), **bukan database design**.
+**CRITICAL**: Skill ini untuk **application code** (handlers, services, repositories), **bukan database design**.
 
-### Kapan Invoke Database Skills
+### Protocol: JANGAN NGIDE, ALWAYS TANYA DULU
 
-**Sebelum menulis ANY SQL, migrations, atau repository code:**
+**MANDATORY UNTUK SEMUA DATABASE WORK:**
 
-1. **Schema design** → Invoke `database-designer` skill
-   - Trigger: "design orders table", "create users schema", "design relasi order-items"
-   - Output: ERD, SQL CREATE TABLE statements, indexes, constraints, migration files (golang-migrate compatible)
+Ketika user minta feature/endpoint/code yang touch database:
+
+1. **STOP** — jangan langsung generate code
+2. **ASK** — tanya user tentang database setup
+3. **WAIT** — tunggu user response sebelum proceed
+4. **VERIFY** — pastikan schema ready sebelum coding
+
+### Phase 1: Database Verification (WAJIB — JANGAN SKIP!)
+
+**SEBELUM generate ANY code yang akses database, TANYA user:**
+
+```
+Sebelum bikin [feature-name], saya perlu cek database setup dulu:
+
+Database Checklist:
+1. Schema Design
+   - Apakah schema [entity-name] sudah di-design? (ERD, relationships)
+   - Apakah ada relasi ke entity lain (User, Product, dll)?
    
-2. **Query optimization** → Invoke `database-optimizer` skill
-   - Trigger: "slow query di ListOrders", "N+1 problem", "need index"
-   - Output: EXPLAIN analysis, index recommendations, query rewrites
+2. Migration Setup (golang-migrate / sqlc / GORM)
+   - Apakah migration files sudah dibuat?
+   - Apakah migration sudah di-run?
+   
+3. Indexes & Performance
+   - Apakah sudah ada index untuk common queries?
+   - (Contoh: user_id, created_at, status)
+
+Please confirm status:
+- [ ] Schema sudah di-design
+- [ ] Migration sudah dibuat
+- [ ] Migration sudah di-run
+
+Silakan jawab dengan status setiap item. Jangan skip checklist ini.
+```
+
+**JANGAN PROCEED sampai user confirm!**
+
+### Phase 2: Design Schema (jika belum ada)
+
+**IF user jawab "belum" atau "tidak yakin":**
+
+```
+Schema belum ready. Saya HARUS invoke database-designer dulu sebelum generate code.
+
+Saya akan design:
+- Entity: [entity-name]
+- Relationships: [list relasi yang dibutuhkan]
+- Indexes: [common query patterns]
+
+Boleh saya invoke database-designer sekarang? (y/n)
+```
+
+**WAIT for user approval** — jangan auto-invoke tanpa izin!
+
+### Phase 3: Generate Application Code (hanya setelah confirmed)
+
+**ONLY after user confirm "schema ready dan migration sudah run":**
+
+```
+Perfect! Schema sudah ready. Sekarang saya generate Go code:
+
+Will create:
+- internal/[name]/handler.go (HTTP handlers)
+- internal/[name]/service.go (business logic)
+- internal/[name]/repository.go (database queries)
+- internal/[name]/model.go (Go structs)
+
+Reminder: Pastikan index sudah ada di [list columns]. Check database-optimizer jika query lambat.
+
+Proceeding...
+```
+
+**Kemudian** baru generate code.
 
 ### Go Database Library Preference
 
@@ -155,7 +221,7 @@ func (r *Repository) UpdateOrderStatus(ctx context.Context, orderID string, stat
 **database-designer akan provide:**
 - Raw SQL schemas (perfect untuk sqlc)
 - Index strategies
-- Migration patterns
+- Migration patterns (golang-migrate compatible)
 
 ### Skill Boundary
 
@@ -164,30 +230,76 @@ func (r *Repository) UpdateOrderStatus(ctx context.Context, orderID string, stat
 - Repository patterns (sqlc/pgx/GORM)
 - Context cancellation untuk DB queries
 - Error handling (errors.Is, fmt.Errorf dengan %w)
-- Testing dengan mock repositories
 
 ❌ **Skill ini TIDAK handle:**
 - Database schema design → `database-designer`
 - SQL migrations → `database-designer`
 - Query performance → `database-optimizer`
-- Index strategies → `database-designer/database-optimizer`
 
-### Workflow yang Benar
+### Anti-Pattern: JANGAN LAKUKAN INI
 
-**User tanya:** "Bikin orders feature di Gin API"
-
-**✅ Correct flow:**
-1. Tanya: "Apakah schema orders table sudah di-design?"
-2. Kalau belum → Sarankan invoke `database-designer`
-3. Setelah design ready → User buat migration
-4. Jika pakai sqlc → Write queries, run `sqlc generate`
-5. Generate application code
-6. Reminder: Check indexes dengan `database-optimizer` jika lambat
-
-**❌ Wrong flow:**
+**❌ WRONG — Langsung generate tanpa tanya:**
 ```go
-// Jangan langsung tulis SQL tanpa design
-rows, err := db.Query("SELECT * FROM orders WHERE user_id = ?", userId)
+// AI langsung generate tanpa cek schema:
+func CreateOrder(c *gin.Context) {
+    var input CreateOrderInput
+    db.Create(&Order{UserID: input.UserID})
+}
+```
+
+**Why wrong:**
+- Assume schema exists
+- Tidak tahu relasi apa yang ada
+- Tidak tahu index apa yang perlu
+- User belum confirm setup ready
+
+**✅ CORRECT — Tanya dulu, generate kemudian:**
+```
+AI: "Apakah schema orders table sudah di-design? Please confirm checklist..."
+User: "Belum"
+AI: "OK, saya invoke database-designer dulu. Boleh?"
+User: "Ya"
+AI: [invoke database-designer]
+User: [run migration]
+User: "Done"
+AI: "Great! Sekarang generate Go code..." [generate code]
+```
+
+### Migration & sqlc Tips (after schema designed)
+
+**Run migration** dari database-designer output:
+```bash
+# golang-migrate
+migrate -path db/migrations -database "postgres://..." up
+
+# atau sqlc dengan schema.sql
+psql -d mydb -f db/schema.sql
+```
+
+**Generate sqlc code:**
+```bash
+# database-designer akan provide SQL queries
+sqlc generate
+```
+
+**Di application code:**
+```go
+// internal/orders/repository.go (after sqlc generate)
+func (r *Repository) GetUserOrders(ctx context.Context, userID uuid.UUID) ([]*Order, error) {
+    return r.queries.ListOrdersByUser(ctx, userID)
+}
+
+// internal/orders/service.go (business logic)
+func (s *Service) CancelOrder(ctx context.Context, orderID string) (*Order, error) {
+    order, err := s.repo.GetByID(ctx, orderID)
+    if err != nil {
+        return nil, fmt.Errorf("find order %s: %w", orderID, err)
+    }
+    if order.Status == StatusShipped {
+        return nil, apierr.New(apierr.Conflict, "Order already shipped.")
+    }
+    return s.repo.UpdateStatus(ctx, orderID, StatusCancelled)
+}
 ```
 
 ---
