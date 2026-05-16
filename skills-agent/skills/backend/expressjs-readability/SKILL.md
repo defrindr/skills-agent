@@ -15,8 +15,11 @@ description: >
 
 Express adalah DSL untuk membangun middleware pipeline. Bukan MVC framework, bukan opinionated — hanya fungsi yang masuk dari atas, lewat tiap middleware satu per satu, keluar sebagai response di bawah.
 
-> Untuk naming, folder structure, komentar, test naming, Git, dan API response shape — ikuti `common/project-readability`.
+> **PENTING**: Untuk naming, folder structure, komentar, test naming, Git, API response shape, dan **scale-aware architecture** — ikuti `common/project-readability`.
 > Skill ini hanya mencakup hal yang spesifik untuk Express dan Node.js.
+> 
+> **Jangan over-engineer**: Simple project ≠ butuh service layer, startup ≠ butuh repository pattern, complex domain ≠ harus domain-driven design.
+> Struktur folder di bawah adalah contoh — **sesuaikan dengan skala project** sesuai `project-readability`.
 
 ---
 
@@ -102,7 +105,94 @@ declare namespace Express {
 
 ---
 
-## 1. Struktur folder
+## 1. Struktur folder — scale-aware
+
+**Aturan**: Ikuti `common/project-readability` untuk scale-aware architecture. Contoh di bawah untuk referensi saja.
+
+### Simple project (< 5 routes, 1-2 dev, CRUD API)
+
+```
+src/
+├── routes/
+│   ├── orders.ts          ← handler langsung di router
+│   └── products.ts
+├── middleware/
+│   ├── authenticate.ts
+│   └── validate.ts
+├── db.ts                   ← Prisma client atau DB connection
+├── config.ts               ← env validation
+└── app.ts
+
+// orders.ts — no service layer, langsung panggil DB
+ordersRouter.post("/", authenticate, validate(schema), catchAsync(async (req, res) => {
+  const order = await db.order.create({ data: { userId: req.user!.id, ...req.body } })
+  res.status(201).json(ApiSuccess(order))
+}))
+```
+
+### Medium project (5-15 routes, 3-5 dev, business logic mulai kompleks)
+
+```
+src/
+├── features/
+│   ├── orders/
+│   │   ├── orders.router.ts    ← wiring
+│   │   ├── orders.service.ts   ← use-case / business logic
+│   │   └── orders.schema.ts    ← Zod
+│   └── products/
+│       ├── products.router.ts
+│       └── products.service.ts
+├── shared/
+│   ├── middleware/
+│   │   ├── authenticate.ts
+│   │   └── validate.ts
+│   ├── api/response.ts
+│   └── errors/AppError.ts
+├── db.ts
+└── app.ts
+
+// orders.service.ts — business logic terpisah dari router
+export class OrdersService {
+  async createOrder(userId: string, input: CreateOrderInput) {
+    const product = await db.product.findUnique({ where: { id: input.productId } })
+    if (!product || product.stock < input.quantity) throw new AppError("OUT_OF_STOCK", 400)
+    return db.order.create({ data: { userId, ...input } })
+  }
+}
+```
+
+### Complex project (> 15 routes, > 5 dev, multiple domains, high business complexity)
+
+```
+src/
+├── features/
+│   ├── orders/
+│   │   ├── orders.router.ts
+│   │   ├── orders.service.ts
+│   │   ├── orders.repository.ts  ← abstraksi DB queries
+│   │   └── orders.schema.ts
+│   └── inventory/
+│       ├── inventory.service.ts
+│       └── inventory.repository.ts
+├── shared/
+│   ├── domain/                    ← shared business rules
+│   │   └── pricing/
+│   │       └── calculateDiscount.ts
+│   ├── middleware/
+│   └── api/
+└── app.ts
+
+// Gunakan repository pattern HANYA jika:
+// - Perlu switch DB provider (Prisma → TypeORM)
+// - Complex query reuse (10+ use cases pakai query yang sama)
+// - Testing perlu banyak mock DB calls
+```
+
+**Anti-pattern**: Jangan paksa struktur complex untuk project simple. Kalau cuma 3 CRUD endpoints, feature-first + service layer sudah overkill — langsung handler + DB call di router cukup.
+
+---
+
+## 2. Feature-first default (untuk medium+)
 
 Feature-first sesuai `common/project-readability`. Tambahan untuk Express:
 
@@ -128,7 +218,7 @@ src/
 
 ---
 
-## 2. Validasi env di startup
+## 3. Validasi env di startup
 
 ```typescript
 // src/shared/config.ts
@@ -154,7 +244,7 @@ Kalau `.env` salah, crash saat startup dengan pesan yang jelas — jauh lebih ba
 
 ---
 
-## 3. `catchAsync` — hapus boilerplate try-catch
+## 4. `catchAsync` — hapus boilerplate try-catch
 
 ```typescript
 // src/shared/api/catchAsync.ts
@@ -178,7 +268,7 @@ ordersRouter.post(
 
 ---
 
-## 4. Validasi request — Zod
+## 5. Validasi request — Zod
 
 ```typescript
 // src/features/orders/orders.schema.ts
@@ -210,7 +300,7 @@ export function validate(schema: ZodSchema) {
 
 ---
 
-## 5. Testing
+## 6. Testing
 
 ```typescript
 // Vitest + supertest
@@ -234,7 +324,7 @@ Nama test mengikuti `common/project-readability` — natural language, dokumenta
 
 ---
 
-## 6. Tooling
+## 7. Tooling
 
 ```bash
 npm install express zod prisma @prisma/client pino
@@ -248,7 +338,7 @@ npm install -D typescript vitest @types/express tsx
 
 ---
 
-## 7. Docker
+## 8. Docker
 
 ```dockerfile
 FROM node:22-alpine AS deps

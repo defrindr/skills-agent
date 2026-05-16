@@ -15,8 +15,11 @@ description: >
 
 Python punya Zen-nya sendiri: *explicit is better than implicit, readability counts, errors should never pass silently.* FastAPI mengikutinya — type hints sebagai dokumentasi sekaligus validasi, auto docs gratis dari schema, async support built-in.
 
-> Untuk naming, folder structure, komentar, test naming, Git, dan API response shape — ikuti `common/project-readability`.
+> **PENTING**: Untuk naming, folder structure, komentar, test naming, Git, API response shape, dan **scale-aware architecture** — ikuti `common/project-readability`.
 > Skill ini hanya mencakup hal yang spesifik untuk FastAPI dan Python.
+> 
+> **Jangan over-engineer**: Simple project ≠ butuh service layer, startup ≠ butuh repository pattern, complex domain ≠ harus domain-driven design.
+> Struktur folder di bawah adalah contoh — **sesuaikan dengan skala project** sesuai `project-readability`.
 
 ---
 
@@ -80,7 +83,96 @@ async def create_order(body: CreateOrderInput, service: OrdersService = Depends(
 
 ---
 
-## 1. Struktur folder
+## 1. Struktur folder — scale-aware
+
+**Aturan**: Ikuti `common/project-readability` untuk scale-aware architecture. Contoh di bawah untuk referensi saja.
+
+### Simple project (< 5 endpoints, 1-2 dev, CRUD API)
+
+```
+app/
+├── routers/
+│   ├── orders.py          ← endpoint + logic langsung
+│   └── products.py
+├── db.py                   ← SQLAlchemy session
+├── schemas.py              ← Pydantic models (semua)
+├── config.py               ← env validation
+└── main.py
+
+# orders.py — no service layer, langsung panggil DB
+@router.post("/", status_code=201)
+async def create_order(body: CreateOrderInput, session: AsyncSession = Depends(get_db)):
+    order = Order(**body.model_dump())
+    session.add(order)
+    await session.commit()
+    return OrderResponse.model_validate(order)
+```
+
+### Medium project (5-15 endpoints, 3-5 dev, business logic mulai kompleks)
+
+```
+app/
+├── features/
+│   ├── orders/
+│   │   ├── router.py      ← wiring endpoint
+│   │   ├── service.py     ← use-case / business logic
+│   │   └── schemas.py     ← Pydantic input/output
+│   └── products/
+│       ├── router.py
+│       └── service.py
+├── shared/
+│   ├── db/session.py
+│   ├── errors/app_error.py
+│   └── security/
+└── main.py
+
+# service.py — business logic terpisah dari router
+class OrdersService:
+    def __init__(self, session: AsyncSession = Depends(get_db)):
+        self.session = session
+    
+    async def create_order(self, input: CreateOrderInput) -> Order:
+        product = await self.session.get(Product, input.product_id)
+        if not product or product.stock < input.quantity:
+            raise AppError("OUT_OF_STOCK", 400)
+        order = Order(**input.model_dump())
+        self.session.add(order)
+        await self.session.commit()
+        return order
+```
+
+### Complex project (> 15 endpoints, > 5 dev, multiple domains, high business complexity)
+
+```
+app/
+├── features/
+│   ├── orders/
+│   │   ├── router.py
+│   │   ├── service.py
+│   │   ├── repository.py  ← abstraksi DB queries
+│   │   └── schemas.py
+│   └── inventory/
+│       ├── service.py
+│       └── repository.py
+├── shared/
+│   ├── domain/             ← shared business rules
+│   │   └── pricing/
+│   │       └── calculate_discount.py
+│   ├── db/
+│   └── errors/
+└── main.py
+
+# Gunakan repository pattern HANYA jika:
+# - Perlu switch DB provider (SQLAlchemy → raw SQL)
+# - Complex query reuse (10+ use cases pakai query yang sama)
+# - Testing perlu banyak mock DB calls
+```
+
+**Anti-pattern**: Jangan paksa struktur complex untuk project simple. Kalau cuma 3 CRUD endpoints, feature-first + service layer sudah overkill — langsung endpoint + DB call cukup.
+
+---
+
+## 2. Feature-first default (untuk medium+)
 
 Feature-first sesuai `common/project-readability`. Tambahan untuk FastAPI:
 
@@ -101,7 +193,7 @@ app/
 
 ---
 
-## 2. `main.py` — lifespan, bukan `on_event`
+## 3. `main.py` — lifespan, bukan `on_event`
 
 ```python
 from contextlib import asynccontextmanager
@@ -122,7 +214,7 @@ register_exception_handlers(app)
 
 ---
 
-## 3. Dependency injection — `Depends` yang benar
+## 4. Dependency injection — `Depends` yang benar
 
 ```python
 # ❌ Global session — tidak bisa di-test, tidak bisa di-override
@@ -144,7 +236,7 @@ class OrdersService:
 
 ---
 
-## 4. Schema Pydantic v2
+## 5. Schema Pydantic v2
 
 ```python
 from pydantic import BaseModel, UUID4, Field, ConfigDict
@@ -167,7 +259,7 @@ Response model wajib eksplisit — jangan return ORM object atau dict mentah.
 
 ---
 
-## 5. Error handling — wiring ke AppError dari `common`
+## 6. Error handling — wiring ke AppError dari `common`
 
 Pattern `AppError` dari `common/project-readability`. Cara register di FastAPI:
 
@@ -198,7 +290,7 @@ def register_exception_handlers(app: FastAPI) -> None:
 
 ---
 
-## 6. Testing
+## 7. Testing
 
 ```python
 # pytest dengan fixtures — composable, bukan monolithic
@@ -222,7 +314,7 @@ Nama test mengikuti `common/project-readability` — natural language, bukan tec
 
 ---
 
-## 7. Tooling
+## 8. Tooling
 
 ```bash
 # Package management — uv, jauh lebih cepat dari pip
@@ -241,7 +333,7 @@ select = ["E", "F", "I", "UP", "B", "SIM"]
 
 ---
 
-## 8. Docker
+## 9. Docker
 
 ```dockerfile
 FROM python:3.12-slim AS base

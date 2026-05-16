@@ -22,8 +22,11 @@ UI = f(state)
 
 Beri React state, dia render UI. State berubah, UI ikut berubah. Model mental ini sangat simpel — tapi banyak yang merusaknya dengan `useEffect` yang salah tempat, state yang bisa dihitung tapi malah di-`useState`, dan `useCallback` yang ditambahkan "untuk optimasi" padahal bukan di situ bottleneck-nya.
 
-> Untuk naming, folder structure, komentar, test naming, Git, dan API response shape — ikuti `common/project-readability`.
+> **PENTING**: Untuk naming, folder structure, komentar, test naming, Git, API response shape, dan **scale-aware architecture** — ikuti `common/project-readability`.
 > Skill ini hanya mencakup hal yang spesifik untuk React dan mental model-nya.
+> 
+> **Jangan over-engineer**: Simple project ≠ butuh Zustand, startup ≠ butuh Context API per feature, complex domain ≠ harus domain-driven design.
+> Struktur folder di bawah adalah contoh — **sesuaikan dengan skala project** sesuai `project-readability`.
 
 ---
 

@@ -33,6 +33,175 @@ Prinsip ini ada di atas semua section lain. Kalau ada konflik antara "best pract
 
 ---
 
+## Anti-AI Generated Patterns
+
+**CRITICAL:** Kode yang digenerate harus terlihat seperti ditulis manusia, bukan copy-paste dari AI.
+
+### NEVER Generate:
+
+**1. Icon/Emoji di Code atau Comments**
+```typescript
+// ❌ JANGAN: Kelihatan AI-generated banget
+// ✅ Success! User created
+// ❌ Error: validation failed  
+// 🚀 Fast implementation
+const result = {
+  success: true,
+  message: "✅ Data saved successfully"
+}
+
+// ✓ BOLEH: Plain text, professional
+// Success: User created
+// Error: validation failed
+// Fast implementation
+const result = {
+  success: true,
+  message: "Data saved successfully"
+}
+```
+
+**2. Over-Engineering untuk Simple Use Case**
+```typescript
+// ❌ JANGAN: Domain-driven untuk CRUD sederhana perpustakaan
+src/
+├── domains/
+│   ├── book/
+│   │   ├── entities/
+│   │   ├── repositories/
+│   │   ├── services/
+│   │   ├── value-objects/
+│   │   └── aggregates/
+│   └── member/...
+
+// ✓ BOLEH: Feature-first yang simpel
+src/
+├── features/
+│   ├── books/
+│   │   ├── books.controller.ts
+│   │   ├── books.service.ts
+│   │   └── books.schema.ts
+│   └── members/...
+```
+
+**Aturan: Match complexity ke project scale**
+- MVP/simple CRUD → feature-first, minimal abstraction
+- Startup dengan growth → feature-first + service layer
+- Enterprise/complex domain → baru consider DDD patterns
+
+**3. Generic Variable/Function Names**
+```typescript
+// ❌ AI style
+const data = await getData()
+const result = processData(data)
+handleClick()
+
+// ✓ Human style  
+const userOrders = await fetchUserOrders(userId)
+const activeOrders = filterExpiredOrders(userOrders)
+handleCheckoutSubmit()
+```
+
+**4. Excessive Abstraction**
+```typescript
+// ❌ Abstraction sebelum ada pola berulang
+interface Repository<T> {
+  findAll(): Promise<T[]>
+  findById(id: string): Promise<T>
+  create(data: T): Promise<T>
+  update(id: string, data: T): Promise<T>
+  delete(id: string): Promise<void>
+}
+
+class BookRepository implements Repository<Book> {...}
+class MemberRepository implements Repository<Member> {...}
+// Padahal cuma 2 entity, belum tentu pattern sama
+
+// ✓ Direct implementation dulu
+// books.service.ts
+export async function getBooks() {
+  return prisma.book.findMany()
+}
+
+export async function getBookById(id: string) {
+  return prisma.book.findUnique({ where: { id } })
+}
+
+// Baru extract kalau pola berulang 3+ kali dengan konteks sama
+```
+
+**5. Overly Verbose JSDoc**
+```typescript
+// ❌ JSDoc untuk hal yang obvious
+/**
+ * Gets a user by ID
+ * @param id - The user ID
+ * @returns The user object
+ */
+async function getUserById(id: string): Promise<User> {
+  return prisma.user.findUnique({ where: { id } })
+}
+
+// ✓ Function name sudah jelas, no JSDoc needed
+async function getUserById(id: string): Promise<User> {
+  return prisma.user.findUnique({ where: { id } })
+}
+
+// ✓ JSDoc cuma kalau ada context penting
+/**
+ * IMPORTANT: This invalidates all user sessions
+ * Use updateUserProfile() if you only need to update profile data
+ */
+async function resetUserPassword(userId: string, newPassword: string) {
+  // ...
+}
+```
+
+**6. AI Placeholder Comments**
+```typescript
+// ❌ JANGAN tinggalin placeholder
+// TODO: Add error handling
+// TODO: Implement validation
+// Add more features here
+// This is a placeholder
+
+// ✓ Kalau ada TODO, harus spesifik + assignee + deadline
+// TODO(@john): Add rate limiting by 2024-01-15 for API abuse prevention
+```
+
+### Framework Skills MUST Defer to This
+
+**ALL framework-specific skills (Laravel, Next.js, NestJS, etc.) HARUS:**
+1. Refer back to project-readability untuk structure & naming
+2. Adjust recommendations based on project scale (simple vs complex)
+3. NEVER over-engineer simple projects with enterprise patterns
+4. Follow "boring code over clever code" principle
+
+**Example:**
+```
+User: "init simple perpus app with Laravel"
+
+❌ WRONG (Laravel skill generates domain-driven architecture):
+src/
+├── Domain/
+├── Application/
+├── Infrastructure/
+└── Presentation/
+
+✓ CORRECT (Laravel skill defers to project-readability scale):
+app/
+├── Http/Controllers/
+│   ├── BookController.php
+│   └── MemberController.php
+├── Models/
+│   ├── Book.php
+│   └── Member.php
+└── Services/
+    ├── BookService.php  (only if needed)
+    └── MemberService.php
+```
+
+---
+
 ## 1. Struktur folder
 
 Pakai **feature-first**, bukan layer-first.

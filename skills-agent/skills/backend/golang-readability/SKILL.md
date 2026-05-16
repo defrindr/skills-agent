@@ -28,10 +28,13 @@ Yang bikin project Go berantakan hampir selalu dari kebiasaan yang dibawa dari b
 - GORM yang sembunyikan N+1 query di balik method chain
 - Struct embedding yang dalam sampai tidak jelas field dari mana
 
-> Untuk komentar, test naming, Git convention, API response shape, dan anti-AI language audit — ikuti `common/project-readability`.
+> **PENTING**: Untuk komentar, test naming, Git convention, API response shape, anti-AI language audit, dan **scale-aware architecture** — ikuti `common/project-readability`.
 > Skill ini hanya mencakup hal yang spesifik untuk Go.
 >
 > Di Go, readability dan idiomatis sudah sejalan — kalau kode terasa seperti Go yang benar, biasanya sudah readable.
+> 
+> **Jangan over-engineer**: Simple project ≠ butuh service layer, startup ≠ butuh repository pattern, complex domain ≠ harus domain-driven design.
+> Struktur folder di bawah adalah contoh — **sesuaikan dengan skala project** sesuai `project-readability`.
 
 ---
 
@@ -122,43 +125,104 @@ func (r *Repository) UpdateOrderStatus(ctx context.Context, orderID string, stat
 
 ---
 
-## 1. Struktur: domain dalam `internal/`
+## 1. Struktur — scale-aware dengan `internal/`
+
+**Aturan**: Ikuti `common/project-readability` untuk scale-aware architecture. Contoh di bawah untuk referensi saja.
+
+### Simple project (< 5 endpoints, 1-2 dev, CRUD API)
+
+```txt
+myapp/
+├── main.go                  ← wiring + handlers langsung
+├── model.go                 ← semua model
+├── db.go                    ← DB connection
+└── go.mod
+
+// main.go — langsung handler + DB call, no service layer
+func CreateOrder(c *gin.Context) {
+    var input CreateOrderInput
+    if err := c.ShouldBindJSON(&input); err != nil {
+        c.JSON(400, gin.H{"ok": false, "error": gin.H{"code": "VALIDATION_ERROR", "message": err.Error()}})
+        return
+    }
+    
+    order := Order{ID: uuid.New(), UserID: input.UserID, ProductID: input.ProductID}
+    if err := db.Create(&order).Error; err != nil {
+        c.JSON(500, gin.H{"ok": false, "error": gin.H{"code": "INTERNAL_ERROR", "message": "Failed to create order"}})
+        return
+    }
+    c.JSON(201, gin.H{"ok": true, "data": order})
+}
+```
+
+### Medium project (5-15 endpoints, 3-5 dev, business logic mulai kompleks)
 
 ```txt
 myapp/
 ├── cmd/
 │   └── api/
 │       └── main.go          ← wiring saja
-│
 ├── internal/
-│   ├── auth/
-│   │   ├── handler.go
-│   │   ├── service.go
-│   │   ├── repository.go
-│   │   ├── model.go
-│   │   └── service_test.go
-│   │
+│   ├── orders/
+│   │   ├── handler.go       ← HTTP handlers
+│   │   ├── service.go       ← business logic
+│   │   └── model.go
+│   └── products/
+│       ├── handler.go
+│       ├── service.go
+│       └── model.go
+├── pkg/
+│   ├── apierr/              ← error types
+│   └── middleware/
+└── go.mod
+
+// service.go — business logic terpisah dari handler
+func (s *Service) CancelOrder(ctx context.Context, orderID string) (*Order, error) {
+    order, err := s.db.FindByID(ctx, orderID)
+    if err != nil {
+        return nil, fmt.Errorf("find order %s: %w", orderID, err)
+    }
+    if order == nil {
+        return nil, apierr.New(apierr.NotFound, "Order not found.")
+    }
+    if order.Status == StatusShipped {
+        return nil, apierr.New(apierr.Conflict, "Order already shipped.")
+    }
+    return s.db.UpdateStatus(ctx, orderID, StatusCancelled)
+}
+```
+
+### Complex project (> 15 endpoints, > 5 dev, multiple domains, high business complexity)
+
+```txt
+myapp/
+├── cmd/
+│   └── api/
+│       └── main.go
+├── internal/
 │   ├── orders/
 │   │   ├── handler.go
 │   │   ├── service.go
-│   │   ├── repository.go
-│   │   ├── model.go
-│   │   └── service_test.go
-│   │
-│   └── users/
-│       ├── handler.go
-│       ├── service.go
-│       ├── repository.go
-│       └── model.go
-│
+│   │   ├── repository.go    ← abstraksi DB queries
+│   │   └── model.go
+│   ├── inventory/
+│   │   ├── service.go
+│   │   └── repository.go
+│   └── domain/               ← shared business rules
+│       └── pricing/
+│           └── discount.go
 ├── pkg/
 │   ├── apierr/
-│   ├── apiresponse/
-│   ├── middleware/
-│   └── logger/
-│
+│   └── middleware/
 └── go.mod
+
+// Gunakan repository pattern HANYA jika:
+// - Perlu switch DB provider (sqlc → pgx → GORM)
+// - Complex query reuse (10+ use cases pakai query yang sama)
+// - Testing perlu banyak mock DB calls
 ```
+
+**Anti-pattern**: Jangan paksa struktur complex untuk project simple. Kalau cuma 3 CRUD endpoints, handler + service sudah overkill — langsung handler + DB call cukup.
 
 `internal/` bukan sekadar konvensi — Go compiler enforce bahwa package di `internal/` tidak bisa diimport dari luar module. Boundary gratis, tanpa linting rule tambahan.
 
@@ -257,7 +321,7 @@ func (r *Repository) FindByID(ctx context.Context, id string) (*Order, error) {
 
 ---
 
-## 6. Handler dan service
+## 6. Handler dan service (untuk medium+)
 
 ```go
 // internal/orders/handler.go

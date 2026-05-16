@@ -32,15 +32,15 @@ skills/
 
 ---
 
-## 📚 Skills (15 total)
+## 📚 Skills (19 total)
 
 All skills written in **Bahasa Indonesia**:
 
-**Core (5)** - codebase-explorer, feature-architect, project-initializer, project-readability, token-efficient-coding
+**Core (7)** - codebase-explorer, database-designer, database-optimizer, feature-architect, project-initializer, project-readability, token-efficient-coding
 
 **Backend (5)** - expressjs, fastapi, golang, laravel, nestjs readability
 
-**Frontend (3)** - nextjs, react, vue/nuxt/svelte readability
+**Frontend (5)** - nextjs, react, tailwind, theme-redesign, vue/nuxt/svelte readability
 
 **Mobile (2)** - flutter, react-native readability
 

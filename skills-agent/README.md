@@ -15,7 +15,7 @@ curl -fsSL https://raw.githubusercontent.com/defrindr/skills-agent/main/install.
 Auto-configures:
 - ✅ Clones repo to `~/.skills-agent`
 - ✅ Builds & installs dependencies
-- ✅ Links 15 skills to `~/.agents/skills/`
+- ✅ Links 19 skills to `~/.agents/skills/`
 - ✅ Configures OpenCode MCP server
 - ✅ Ready to use!
 
@@ -66,12 +66,14 @@ Exposed via OpenCode MCP:
 - `skills-agent_init_project` - Initialize new projects with guidance
 - `skills-agent_load_skill_context` - Load specific skill content
 
-### Skills (15)
+### Skills (19)
 
 All skills in **Bahasa Indonesia**:
 
-**Core (5):**
+**Core (7):**
 - `codebase-explorer` - Deep codebase analysis
+- `database-designer` - Database schema design (Prisma, normalization, indexing)
+- `database-optimizer` - Query optimization (N+1 fixes, indexing, caching)
 - `feature-architect` - Feature implementation patterns
 - `project-initializer` - Project setup guidance
 - `project-readability` - Master readability guidelines
@@ -80,8 +82,8 @@ All skills in **Bahasa Indonesia**:
 **Backend (5):**
 - `expressjs-readability`, `fastapi-readability`, `golang-readability`, `laravel-readability`, `nestjs-readability`
 
-**Frontend (3):**
-- `nextjs-readability`, `react-readability`, `vue-nuxt-svelte-readability`
+**Frontend (5):**
+- `nextjs-readability`, `react-readability`, `tailwind-readability`, `theme-redesign`, `vue-nuxt-svelte-readability`
 
 **Mobile (2):**
 - `flutter-readability`, `react-native-readability`

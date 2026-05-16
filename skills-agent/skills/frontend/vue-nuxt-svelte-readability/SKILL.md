@@ -27,7 +27,13 @@ Skill ini dipakai untuk project **Vue**, **Nuxt**, **Svelte**, dan **SvelteKit**
 
 Aturan tertinggi: **project-readability.md adalah segalanya**.
 Kalau ada konflik antara framework convention dan readability, pilih readability.
-Kalau ada konflik antara “clean architecture” dan kode yang gampang diubah besok, pilih yang gampang diubah besok.
+Kalau ada konflik antara "clean architecture" dan kode yang gampang diubah besok, pilih yang gampang diubah besok.
+
+> **PENTING**: Untuk naming, folder structure, komentar, test naming, Git, API response shape, dan **scale-aware architecture** — ikuti `common/project-readability`.
+> Skill ini hanya mencakup hal yang spesifik untuk Vue/Nuxt/Svelte.
+> 
+> **Jangan over-engineer**: Simple project ≠ butuh Pinia store per feature, startup ≠ butuh composables factory, complex domain ≠ harus domain-driven design.
+> Struktur folder di bawah adalah contoh — **sesuaikan dengan skala project** sesuai `project-readability`.
 
 Tujuan skill ini bukan bikin project kelihatan enterprise.
 Tujuannya bikin project frontend yang:

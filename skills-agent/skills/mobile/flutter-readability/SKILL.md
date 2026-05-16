@@ -19,8 +19,11 @@ Flutter tidak mengabstraksi platform. Flutter menggantikannya.
 
 Tidak ada WebView, tidak ada native component yang di-wrap. Flutter menggambar setiap pixel sendiri. UI konsisten di semua platform — tapi kamu bertanggung jawab atas semuanya: layout, gesture, animasi, accessibility.
 
-> Untuk naming, komentar, test naming, dan Git — ikuti `common/project-readability`.
+> **PENTING**: Untuk naming, komentar, test naming, Git, dan **scale-aware architecture** — ikuti `common/project-readability`.
 > Dart punya konvensi sendiri untuk file naming, class naming, dan folder structure — dicakup di bawah.
+> 
+> **Jangan over-engineer**: Simple project ≠ butuh Riverpod per screen, startup ≠ butuh repository pattern, complex domain ≠ harus domain-driven design.
+> Struktur folder di bawah adalah contoh — **sesuaikan dengan skala project** sesuai `project-readability`.
 
 ---
 

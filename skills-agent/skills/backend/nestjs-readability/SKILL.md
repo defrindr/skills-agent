@@ -15,6 +15,12 @@ description: >
 Skill ini adalah turunan khusus NestJS dari `project-readability`.
 Semua aturan readability tetap wajib: boring code, nama jelas, feature-first, error message yang actionable, jangan abstraction prematur, dan jangan membuat `shared/` jadi tempat sampah.
 
+> **PENTING**: Untuk naming, folder structure, komentar, test naming, Git, API response shape, dan **scale-aware architecture** — ikuti `common/project-readability`.
+> Skill ini hanya mencakup hal yang spesifik untuk NestJS.
+> 
+> **Jangan over-engineer**: Simple project ≠ butuh module per feature, startup ≠ butuh CQRS, complex domain ≠ harus domain-driven design.
+> Struktur folder di bawah adalah contoh — **sesuaikan dengan skala project** sesuai `project-readability`.
+
 Tujuan utamanya: NestJS project yang enak dibaca, mudah diubah, dan punya boundary API yang konsisten.
 
 ---
@@ -34,9 +40,120 @@ Kalau ada konflik antara kebiasaan NestJS, tutorial internet, dan aturan readabi
 
 ---
 
-## 1. Struktur folder: feature-first untuk NestJS
+## 1. Struktur folder — scale-aware feature-first
 
-Pakai feature-first. Jangan layer-first.
+**Aturan**: Ikuti `common/project-readability` untuk scale-aware architecture. Contoh di bawah untuk referensi saja.
+
+### Simple project (< 5 endpoints, 1-2 dev, CRUD API)
+
+```txt
+src/
+├── main.ts
+├── app.module.ts           ← single module, tanpa feature separation
+├── orders/
+│   ├── orders.controller.ts
+│   ├── orders.service.ts   ← langsung panggil DB, no repository
+│   └── orders.schema.ts
+├── products/
+│   ├── products.controller.ts
+│   ├── products.service.ts
+│   └── products.schema.ts
+└── shared/
+    ├── api-response.ts
+    └── app-error.ts
+
+// orders.service.ts — langsung panggil ORM/DB, no repository layer
+@Injectable()
+export class OrdersService {
+  constructor(@InjectRepository(Order) private repo: Repository<Order>) {}
+  
+  async createOrder(input: CreateOrderInput): Promise<Order> {
+    const order = this.repo.create(input)
+    return this.repo.save(order)
+  }
+}
+```
+
+### Medium project (5-15 endpoints, 3-5 dev, business logic mulai kompleks)
+
+```txt
+src/
+├── main.ts
+├── app.module.ts
+├── features/
+│   ├── auth/
+│   │   ├── auth.module.ts
+│   │   ├── auth.controller.ts
+│   │   ├── auth.service.ts   ← business logic di sini
+│   │   └── auth.schema.ts
+│   └── orders/
+│       ├── orders.module.ts
+│       ├── orders.controller.ts
+│       ├── orders.service.ts
+│       └── orders.schema.ts
+└── shared/
+    ├── api/api-response.ts
+    ├── errors/app-error.ts
+    └── middleware/
+
+// orders.service.ts — business logic terpisah, masih langsung panggil ORM
+@Injectable()
+export class OrdersService {
+  constructor(@InjectRepository(Order) private repo: Repository<Order>) {}
+  
+  async cancelOrder(orderId: string): Promise<Order> {
+    const order = await this.repo.findOne({ where: { id: orderId } })
+    if (!order) throw new AppError(ErrorCode.NOT_FOUND, "Order not found.")
+    if (order.status === "shipped") throw new AppError(ErrorCode.CONFLICT, "Order already shipped.")
+    
+    order.status = "cancelled"
+    return this.repo.save(order)
+  }
+}
+```
+
+### Complex project (> 15 endpoints, > 5 dev, multiple domains, high business complexity)
+
+```txt
+src/
+├── main.ts
+├── app.module.ts
+├── features/
+│   ├── auth/
+│   │   ├── auth.module.ts
+│   │   ├── auth.controller.ts
+│   │   ├── auth.service.ts
+│   │   ├── auth.repository.ts  ← abstraksi DB queries
+│   │   ├── auth.schema.ts
+│   │   └── auth.types.ts
+│   └── orders/
+│       ├── orders.module.ts
+│       ├── orders.controller.ts
+│       ├── orders.service.ts
+│       ├── orders.repository.ts
+│       ├── orders.schema.ts
+│       └── orders.types.ts
+└── shared/
+    ├── api/
+    ├── errors/
+    ├── middleware/
+    └── domain/              ← shared business rules
+        └── pricing/
+            └── calculate-discount.ts
+
+// Gunakan repository pattern HANYA jika:
+// - Perlu switch ORM provider (TypeORM → Prisma → raw SQL)
+// - Complex query reuse (10+ use cases pakai query yang sama)
+// - Testing perlu banyak mock DB calls
+```
+
+**Anti-pattern**: Jangan paksa module/repository/CQRS untuk project simple. Kalau cuma 3 CRUD endpoints, langsung controller + service + ORM cukup.
+
+---
+
+## 2. Naming & prinsip (berlaku di semua scale)
+
+### Complex project (> 15 endpoints, > 5 dev, multiple domains, high business complexity)
 
 ```txt
 src/

@@ -15,13 +15,14 @@ description: >
 
 Skill ini adalah versi Laravel dari `project-readability.md`.
 
-Tujuannya bukan bikin Laravel terlihat “enterprise”, tapi bikin project:
+**CRITICAL: This skill DEFERS to project-readability.md for all decisions.**
 
-- gampang dibaca
-- gampang dites
-- gampang diubah besok
-- tidak penuh abstraction palsu
-- tidak terasa seperti output AI mentah
+Tujuan:
+- Gampang dibaca
+- Gampang dites  
+- Gampang diubah besok
+- TIDAK over-engineer simple projects
+- TIDAK terasa seperti output AI mentah
 
 Aturan tertinggi:
 
@@ -29,6 +30,11 @@ Aturan tertinggi:
 > Kalau ada konflik antara style Laravel, kebiasaan package, opini framework, atau pattern populer dengan readability, maka readability menang.
 
 Aturan kedua:
+
+> **Match architecture to project scale.**
+> Simple perpus app TIDAK butuh domain-driven architecture. Jangan over-engineer.
+
+Aturan ketiga:
 
 > **Coverage tests bukan bonus. Coverage adalah bukti bahwa boundary dan behavior bisa dipercaya.**
 
@@ -49,25 +55,41 @@ Taste rules dari `project-readability.md` tetap berlaku penuh.
 
 ---
 
-## 1. Struktur folder: business-domain first
+## 1. Struktur folder: SCALE-AWARE
 
-Laravel default cenderung layer-first:
+**IMPORTANT:** Struktur harus match dengan project complexity!
+
+### Simple Project (MVP, CRUD, < 10 models)
+
+**Example: Perpustakaan sederhana (books, members, loans)**
 
 ```txt
 app/
 ├── Http/
 │   ├── Controllers/
-│   ├── Requests/
-│   └── Middleware/
+│   │   ├── BookController.php
+│   │   ├── MemberController.php
+│   │   └── LoanController.php
+│   └── Requests/
+│       ├── StoreBookRequest.php
+│       └── StoreLoanRequest.php
 ├── Models/
-├── Policies/
-├── Jobs/
-└── Services/
+│   ├── Book.php
+│   ├── Member.php
+│   └── Loan.php
+└── Services/  (optional, only if logic complex)
+    └── LoanService.php
 ```
 
-Struktur itu oke untuk project kecil. Tapi saat domain membesar, layer-first bikin file satu fitur tersebar di banyak tempat.
+**WHY:** 
+- Cuma 3 entity
+- CRUD sederhana
+- NO need for domain-driven, repositories, actions, DTOs
+- Laravel conventions sudah cukup
 
-Untuk project serius, pakai **business-domain first** di dalam `app/Domain`.
+### Medium Project (Startup, 10-30 models, multiple features)
+
+**Example: E-commerce dengan products, orders, payments**
 
 ```txt
 app/

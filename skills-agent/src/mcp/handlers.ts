@@ -124,52 +124,56 @@ export class ToolHandlers {
   }
 
   async handleInitProject(args: any): Promise<string> {
-    const { framework, name, features = [], provider: overrideProvider } = args;
+    const { 
+      description, 
+      framework: frameworkHint, 
+      name: projectName,
+      provider: overrideProvider 
+    } = args;
 
-    logger.info(`Initializing ${framework} project: ${name}`);
+    logger.info(`Init project request: ${description.substring(0, 50)}...`);
+
+    // Load project-initializer skill
+    const skill = skillManager.getSkill('project-initializer');
+    if (!skill) {
+      throw new Error('project-initializer skill not found');
+    }
+
+    // Analyze description to extract requirements
+    const requirements = this.parseProjectRequirements(description, frameworkHint, projectName);
+
+    // Check if we have enough info
+    if (!requirements.hasEnoughInfo) {
+      return this.buildRequirementsGatheringResponse(requirements);
+    }
 
     // Load relevant skills
-    const skillsToLoad = ['project-readability'];
-    const frameworkSkills = await this.getFrameworkSkills(framework);
-    skillsToLoad.push(...frameworkSkills);
-
-    // Try to load project-initializer if exists
-    try {
-      const initSkill = skillManager.getSkill('project-initializer');
-      if (initSkill) {
-        skillsToLoad.push('project-initializer');
-      }
-    } catch {
-      // project-initializer skill optional
+    const skillsToLoad = ['project-initializer', 'project-readability', 'token-efficient-coding'];
+    
+    // Add framework-specific skill if detected
+    if (requirements.framework) {
+      const frameworkSkills = await this.getFrameworkSkills(requirements.framework);
+      skillsToLoad.push(...frameworkSkills);
     }
 
     const context = await this.buildSkillContext(skillsToLoad);
 
     // Resolve provider (prefer free tier for init)
-    const skill = skillManager.getSkill('project-readability') || {
-      name: 'init-project',
-      metadata: { default_provider: 'deepseek', complexity: 'simple' }
-    } as any;
     const selectedProvider = providerResolver.resolve(skill, overrideProvider);
 
-    // Build prompt
-    const featuresStr = features.length > 0 ? `\nFeatures requested: ${features.join(', ')}` : '';
+    // Build tailored prompt
     const prompt: Message[] = [
       {
         role: 'system',
-        content: `You are a project initialization expert. Guide the user to setup a new ${framework} project following best practices from the loaded skills.\n\n${context}`
+        content: `You are a project initialization expert following the project-initializer skill guidelines.
+
+CRITICAL: You have ALL the requirements. DO NOT ask questions. Provide the complete setup guide immediately.
+
+${context}`
       },
       {
         role: 'user',
-        content: `Initialize a new ${framework} project named "${name}".${featuresStr}
-
-Provide:
-1. **Recommended initialization command** (e.g., npx create-next-app, nest new, etc.)
-2. **Project structure** following project-readability principles
-3. **Setup steps** for requested features
-4. **Next commands** to get started
-
-Be specific with commands and file structures. Follow the framework's best practices from the loaded skills.`
+        content: this.buildInitPrompt(requirements)
       }
     ];
 
@@ -187,10 +191,11 @@ Be specific with commands and file structures. Follow the framework's best pract
     // Track usage
     await budgetTracker.track('init-project', result.response);
 
-    return `# 🚀 Project Initialization Guide: ${name}
+    return `# 🚀 Project Setup Guide
 
-**Framework:** ${framework}
-**Features:** ${features.length > 0 ? features.join(', ') : 'Base setup'}
+**Requirements Summary:**
+${this.formatRequirementsSummary(requirements)}
+
 **Provider:** ${result.response.provider}
 **Cost:** $${result.response.cost?.toFixed(4) || '0.0000'}
 
@@ -200,13 +205,201 @@ ${result.response.content}
 
 ---
 
-💡 **Tip:** After running the setup commands, I can help you:
-- Explore the generated codebase
-- Implement additional features
-- Setup testing, Docker, CI/CD
-- Add authentication, database, etc.
+💡 **Next:** After setup, I can help you:
+- Explore generated codebase
+- Implement features
+- Add testing, Docker, CI/CD
 
 Just ask!`;
+  }
+
+  // Parse project requirements from description
+  private parseProjectRequirements(
+    description: string, 
+    frameworkHint?: string, 
+    projectName?: string
+  ) {
+    const desc = description.toLowerCase();
+    
+    // Extract type
+    const typeKeywords = {
+      web: ['web app', 'website', 'saas', 'dashboard', 'admin'],
+      api: ['api', 'backend', 'server', 'microservice'],
+      mobile: ['mobile', 'ios', 'android', 'app'],
+      fullstack: ['fullstack', 'full-stack', 'full stack']
+    };
+    
+    let type = frameworkHint ? 'web' : undefined;
+    for (const [key, keywords] of Object.entries(typeKeywords)) {
+      if (keywords.some(kw => desc.includes(kw))) {
+        type = key;
+        break;
+      }
+    }
+
+    // Extract scale
+    const scaleKeywords = {
+      mvp: ['mvp', 'prototype', 'quick', 'fast', 'simple', 'basic', 'landing'],
+      startup: ['startup', 'scalable', 'grow', 'production'],
+      enterprise: ['enterprise', 'team', 'large', 'organization', 'company']
+    };
+    
+    let scale = undefined;
+    for (const [key, keywords] of Object.entries(scaleKeywords)) {
+      if (keywords.some(kw => desc.includes(kw))) {
+        scale = key;
+        break;
+      }
+    }
+
+    // Extract features
+    const features: string[] = [];
+    const featureKeywords = [
+      'auth', 'authentication', 'login',
+      'database', 'postgres', 'mongodb', 'mysql', 'db',
+      'payment', 'stripe', 'billing',
+      'realtime', 'websocket', 'live',
+      'email', 'notification',
+      'upload', 'file',
+      'docker', 'container'
+    ];
+    
+    featureKeywords.forEach(kw => {
+      if (desc.includes(kw)) features.push(kw);
+    });
+
+    // Extract framework
+    const frameworkKeywords = {
+      'nextjs': ['nextjs', 'next.js', 'next'],
+      'react': ['react', 'vite'],
+      'vue': ['vue', 'nuxt'],
+      'nestjs': ['nestjs', 'nest'],
+      'express': ['express', 'expressjs'],
+      'fastapi': ['fastapi', 'fast api'],
+      'laravel': ['laravel'],
+      'flutter': ['flutter'],
+      'react-native': ['react native', 'react-native', 'expo']
+    };
+    
+    let framework = frameworkHint;
+    if (!framework) {
+      for (const [key, keywords] of Object.entries(frameworkKeywords)) {
+        if (keywords.some(kw => desc.includes(kw))) {
+          framework = key;
+          break;
+        }
+      }
+    }
+
+    // Extract team info
+    const teamKeywords = {
+      solo: ['solo', 'myself', 'alone', 'personal'],
+      small: ['small team', '2-5', 'few devs'],
+      large: ['team', 'devs', 'developers', 'engineers']
+    };
+    
+    let teamSize = undefined;
+    for (const [key, keywords] of Object.entries(teamKeywords)) {
+      if (keywords.some(kw => desc.includes(kw))) {
+        teamSize = key;
+        break;
+      }
+    }
+
+    // Determine if we have enough info
+    const hasEnoughInfo = !!(framework && scale);
+
+    return {
+      description,
+      type,
+      scale,
+      features,
+      framework,
+      teamSize,
+      projectName,
+      hasEnoughInfo
+    };
+  }
+
+  // Build response asking for more requirements
+  private buildRequirementsGatheringResponse(requirements: any): string {
+    const missing: string[] = [];
+    
+    if (!requirements.framework) missing.push('Framework/tech stack');
+    if (!requirements.scale) missing.push('Project scale (MVP/startup/enterprise)');
+    
+    return `# 📋 Project Requirements Needed
+
+I need more information to recommend the best setup. Please provide:
+
+${missing.map(m => `- **${m}**`).join('\n')}
+
+## Quick Questions:
+
+1. **What are you building?**
+   - Type: ${requirements.type || 'Web app? API? Mobile app?'}
+   ${!requirements.framework ? '\n   - Framework preference: Next.js? NestJS? React? Flutter? (or should I recommend?)' : ''}
+
+2. **Scale & Complexity:**
+   ${!requirements.scale ? '- MVP/prototype (quick start)?\n   - Startup (scalable, production-ready)?\n   - Enterprise (team collaboration)?' : `- ${requirements.scale}`}
+
+3. **Core Features:**
+   ${requirements.features.length > 0 ? `- Already mentioned: ${requirements.features.join(', ')}` : '- Authentication? Database? Payments? Real-time?'}
+   - Any other features?
+
+4. **Team & Timeline:**
+   ${requirements.teamSize ? `- Team: ${requirements.teamSize}` : '- Solo dev or team?'}
+   - Quick prototype or production-ready?
+
+## Example of Complete Request:
+
+"Init Next.js SaaS app with Clerk auth and PostgreSQL. Solo dev, startup scale, need Stripe payments."
+
+**Once I have this info, I'll provide:**
+- Tailored tech stack recommendations
+- Exact setup commands
+- Project structure
+- Timeline estimate
+
+**No unnecessary complexity, just what you need!** 🎯`;
+  }
+
+  // Build prompt for project init with full requirements
+  private buildInitPrompt(requirements: any): string {
+    return `Initialize a new project with these requirements:
+
+**Type:** ${requirements.type || 'web'}
+**Framework:** ${requirements.framework}
+**Scale:** ${requirements.scale}
+**Features:** ${requirements.features.length > 0 ? requirements.features.join(', ') : 'base setup only'}
+**Team:** ${requirements.teamSize || 'not specified'}
+**Project Name:** ${requirements.projectName || 'my-app'}
+
+Follow the project-initializer skill guidelines:
+
+1. **Confirm requirements** (1-2 sentences summary)
+2. **Recommend tech stack** (with reasoning for each choice based on scale + features)
+3. **Provide initialization commands** (official CLI tools)
+4. **Project structure** (tailored to scale: MVP = minimal, startup = feature-first, enterprise = domain-driven)
+5. **Feature setup commands** (ONLY for requested features)
+6. **Timeline estimate** (realistic based on features)
+7. **Next steps** (specific to their requirements)
+
+Be specific with commands. Only include features they requested. Match structure to scale.`;
+  }
+
+  // Format requirements summary
+  private formatRequirementsSummary(requirements: any): string {
+    const lines: string[] = [];
+    
+    if (requirements.type) lines.push(`- Type: ${requirements.type}`);
+    if (requirements.framework) lines.push(`- Framework: ${requirements.framework}`);
+    if (requirements.scale) lines.push(`- Scale: ${requirements.scale}`);
+    if (requirements.features.length > 0) lines.push(`- Features: ${requirements.features.join(', ')}`);
+    if (requirements.teamSize) lines.push(`- Team: ${requirements.teamSize}`);
+    if (requirements.projectName) lines.push(`- Name: ${requirements.projectName}`);
+    
+    return lines.join('\n');
   }
 
   // Helper methods

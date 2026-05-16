@@ -76,29 +76,28 @@ export const SKILL_TOOLS = [
 
   {
     name: 'init_project',
-    description: 'Initialize new project with guidance from framework-specific skills. Provides commands and structure recommendations.',
+    description: 'Initialize new project with tailored guidance. If requirements unclear, agent will ask questions first to understand scale, features, team size, and timeline before recommending setup.',
     inputSchema: {
       type: 'object',
       properties: {
+        description: {
+          type: 'string',
+          description: 'Project description with as much detail as possible: type (web/mobile/api), scale (mvp/startup/enterprise), features needed (auth, db, payments, etc), team size, timeline. Example: "nextjs saas app with clerk auth and postgres, solo dev, startup scale"'
+        },
         framework: {
           type: 'string',
-          description: 'Framework to initialize (e.g., "nextjs", "nestjs", "react", "expressjs")'
+          description: 'Preferred framework (optional - agent can recommend based on requirements)'
         },
         name: {
           type: 'string',
-          description: 'Project name'
-        },
-        features: {
-          type: 'array',
-          items: { type: 'string' },
-          description: 'Optional features (e.g., ["auth", "database", "docker"])'
+          description: 'Project name (optional - can be provided later)'
         },
         provider: {
           type: 'string',
           description: 'Override default provider (optional)'
         }
       },
-      required: ['framework', 'name']
+      required: ['description']
     }
   }
 ];

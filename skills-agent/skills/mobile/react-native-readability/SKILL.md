@@ -17,8 +17,11 @@ description: >
 
 React Native bukan React yang di-compile ke native. Ada dua runtime yang berbicara lewat bridge: **JS thread** tempat kode berjalan, dan **native thread** tempat UI dirender. Komunikasi antara keduanya mahal — operasi berat di JS thread akan terasa di UI.
 
-> Untuk naming, folder structure, komentar, test naming, Git, dan API response shape — ikuti `common/project-readability`.
+> **PENTING**: Untuk naming, folder structure, komentar, test naming, Git, API response shape, dan **scale-aware architecture** — ikuti `common/project-readability`.
 > Skill ini hanya mencakup hal yang spesifik untuk React Native dan mobile environment.
+> 
+> **Jangan over-engineer**: Simple project ≠ butuh Zustand, startup ≠ butuh Context API per feature, complex domain ≠ harus domain-driven design.
+> Struktur folder di bawah adalah contoh — **sesuaikan dengan skala project** sesuai `project-readability`.
 
 ---
 

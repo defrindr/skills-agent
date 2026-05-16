@@ -21,6 +21,12 @@ Tujuannya satu: codebase Next.js yang gampang dibaca, gampang diubah, dan tidak 
 Prinsip utama: **frontend boleh hidup dengan `camelCase`, walaupun backend pakai `snake_case`.**
 Konversi dilakukan di boundary API, bukan di component.
 
+> **PENTING**: Untuk naming, folder structure, komentar, test naming, Git, API response shape, dan **scale-aware architecture** — ikuti `common/project-readability`.
+> Skill ini hanya mencakup hal yang spesifik untuk Next.js.
+> 
+> **Jangan over-engineer**: Simple project ≠ butuh server actions per feature, startup ≠ butuh custom API client factory, complex domain ≠ harus domain-driven design.
+> Struktur folder di bawah adalah contoh — **sesuaikan dengan skala project** sesuai `project-readability`.
+
 ---
 
 ## Taste Rules
