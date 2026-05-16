@@ -1,507 +1,328 @@
 ---
 name: flutter-readability
 description: >
-  Panduan membangun dan mereview project Flutter dengan readability tinggi,
-  struktur feature-first, state management dengan Riverpod, repository pattern yang bersih,
-  widget decomposition yang tepat, dan kode Dart yang tidak terasa seperti output AI mentah.
-  Gunakan skill ini saat init project Flutter, code review, refactor widget/provider/repository,
-  setup API client, form handling, navigasi, testing, atau saat project Flutter mulai punya
-  widget 500 baris, business logic di dalam `build()`, state management yang tersebar,
-  atau `setState` yang dipakai untuk hal-hal yang seharusnya global.
-  Trigger: "setup flutter", "init flutter", "flutter structure", "flutter riverpod",
-  "flutter provider", "flutter bloc", "flutter widget", "flutter api", "flutter testing",
-  "review flutter", "flutter dart", "flutter clean architecture", "flutter go_router".
+  Panduan membangun dan mereview project Flutter + Dart dengan widget tree yang bersih,
+  state management dengan Riverpod, immutable model dengan freezed, navigasi dengan go_router,
+  dan kode Dart modern (null safety, sealed classes, pattern matching).
+  Gunakan skill ini saat init project Flutter, membuat screen atau widget baru, code review,
+  refactor widget yang terlalu besar, setup state management, atau saat project berantakan
+  dengan setState di mana-mana dan BuildContext yang di-store ke variabel.
+  Trigger: "setup flutter", "init flutter", "flutter widget", "flutter riverpod",
+  "flutter go_router", "flutter freezed", "flutter state management", "flutter provider",
+  "dart null safety", "flutter testing", "review flutter", "flutter best practice",
+  "flutter structure", "flutter dart".
 ---
 
 # Flutter Readability Skill
 
-Skill ini adalah versi Flutter dari `project-readability`.
+Flutter tidak mengabstraksi platform. Flutter menggantikannya.
 
-Flutter memudahkan banyak hal — hot reload, widget system, native performance. Tapi karena semuanya berbasis widget, project yang tidak terstuktur cepat berakhir dengan `build()` method yang mengerjakan data fetching, logic, dan rendering sekaligus. Belum lagi pilihan state management yang terlalu banyak sehingga orang sering ganti-ganti di satu project.
+Tidak ada WebView, tidak ada native component yang di-wrap. Flutter menggambar setiap pixel sendiri. UI konsisten di semua platform — tapi kamu bertanggung jawab atas semuanya: layout, gesture, animasi, accessibility.
 
-Tujuan skill ini:
-
-- Flutter project yang punya boundary jelas antara data, logic, dan UI
-- State management dengan Riverpod (default recommendation, bukan BLoC)
-- Widget yang bisa dibaca tanpa harus tahu konteks penuh project
-- Testing yang dokumentasi behavior
-
-Aturan tertinggi:
-
-> **project-readability adalah segalanya.**
-> Boring Dart lebih baik dari clever Dart. Widget tipis lebih baik dari widget yang melakukan segalanya.
+> Untuk naming, komentar, test naming, dan Git — ikuti `common/project-readability`.
+> Dart punya konvensi sendiri untuk file naming, class naming, dan folder structure — dicakup di bawah.
 
 ---
 
-## 0. Taste rules
+## 0. Karakter Flutter/Dart yang harus dijaga
 
-| Rule | Artinya di Flutter |
-|---|---|
-| Jangan bikin abstraction sebelum pola berulang. | Jangan bikin `BaseRepository<T>`, `GenericNotifier<T>`, atau abstract widget factory sampai ada 3+ case identik. |
-| Prefer boring code. | `Consumer` dengan `AsyncValue.when()` yang eksplisit lebih baik dari reactive chain yang susah di-debug. |
-| Nama harus menjelaskan intent. | `OrderDetailScreen`, `orderDetailProvider`, `cancelOrder` lebih baik dari `DetailPage`, `dataProvider`, `handlePress`. |
-| Error harus actionable. | Jangan tampilkan `Error`. Tampilkan apa yang salah dan apa yang user bisa lakukan. |
-| API boundary harus jelas. | `snake_case` dari backend selesai di repository/mapper, tidak bocor ke UI layer. |
+### `const` = compile-time optimization, bukan style
+
+```dart
+// ❌ Widget dibuat ulang setiap rebuild
+Widget build(BuildContext context) {
+  return Column(children: [
+    Text("Hello"),   // dibuat ulang
+    SizedBox(height: 16),  // dibuat ulang
+  ]);
+}
+
+// ✅ const widget di-reuse — Flutter skip rebuild
+Widget build(BuildContext context) {
+  return Column(children: [
+    const Text("Hello"),
+    const SizedBox(height: 16),
+  ]);
+}
+```
+
+Gunakan `const` di mana pun memungkinkan. Ini bukan soal style — ini instruksi ke compiler.
+
+### `StatelessWidget` sebelum `StatefulWidget`
+
+```dart
+// ❌ StatefulWidget tanpa state
+class OrderCard extends StatefulWidget {
+  final Order order;
+  const OrderCard({super.key, required this.order});
+  @override
+  State<OrderCard> createState() => _OrderCardState();
+}
+class _OrderCardState extends State<OrderCard> {
+  @override
+  Widget build(BuildContext context) => Card(child: Text(widget.order.id));  // tidak ada state
+}
+
+// ✅
+class OrderCard extends StatelessWidget {
+  final Order order;
+  const OrderCard({super.key, required this.order});
+  @override
+  Widget build(BuildContext context) => Card(child: Text(order.id));
+}
+```
+
+### `BuildContext` bisa stale setelah `await`
+
+```dart
+// ❌ Context mungkin sudah tidak valid setelah async gap
+Future<void> handleSubmit() async {
+  await service.submitOrder(order);
+  Navigator.of(context).pop();  // widget mungkin sudah di-unmount
+}
+
+// ✅ Cek mounted
+Future<void> handleSubmit() async {
+  await service.submitOrder(order);
+  if (!mounted) return;
+  Navigator.of(context).pop();
+}
+```
+
+### `late` adalah code smell
+
+```dart
+// ❌ late untuk menunda inisialisasi
+class _ProfileState extends State<ProfileScreen> {
+  late UserService _service;
+  late String _displayName;
+  @override
+  void initState() {
+    super.initState();
+    _service = UserService();
+    _displayName = "${widget.user.firstName} ${widget.user.lastName}";
+  }
+}
+
+// ✅ Inisialisasi langsung atau getter
+class _ProfileState extends State<ProfileScreen> {
+  final _service = UserService();
+  String get _displayName => "${widget.user.firstName} ${widget.user.lastName}";
+}
+```
+
+### Dart 3 — sealed class + exhaustive pattern matching
+
+```dart
+// ❌ if-else yang compiler tidak bisa validasi
+if (state is LoadingState) { ... }
+else if (state is SuccessState) { ... }
+else if (state is ErrorState) { ... }
+// ← kalau tambah state baru, tidak ada warning
+
+// ✅ Sealed class + switch expression — compiler paksa handle semua case
+sealed class OrderState {}
+class OrderLoading extends OrderState {}
+class OrderSuccess extends OrderState { final List<Order> orders; ... }
+class OrderError extends OrderState { final String message; ... }
+
+return switch (state) {
+  OrderLoading() => const CircularProgressIndicator(),
+  OrderSuccess(:final orders) => OrderList(orders: orders),
+  OrderError(:final message) => ErrorWidget(message: message),
+  // ← kalau tambah OrderState baru, compile error di sini
+};
+```
 
 ---
 
-## 1. Struktur folder: feature-first
+## 1. Struktur folder dan naming Dart
 
-```txt
+```
 lib/
 ├── features/
-│   ├── auth/
-│   │   ├── screens/
-│   │   │   ├── login_screen.dart
-│   │   │   └── forgot_password_screen.dart
-│   │   ├── widgets/
-│   │   │   └── login_form.dart
-│   │   ├── providers/
-│   │   │   └── auth_provider.dart
-│   │   ├── repositories/
-│   │   │   └── auth_repository.dart
-│   │   ├── models/
-│   │   │   └── auth_models.dart
-│   │   └── auth.dart             ← barrel export
-│   │
 │   └── orders/
-│       ├── screens/
+│       ├── presentation/
 │       │   ├── order_list_screen.dart
-│       │   └── order_detail_screen.dart
-│       ├── widgets/
-│       │   ├── order_card.dart
-│       │   └── order_status_badge.dart
+│       │   └── widgets/
+│       │       └── order_card.dart
 │       ├── providers/
-│       │   ├── order_list_provider.dart
-│       │   └── order_detail_provider.dart
-│       ├── repositories/
-│       │   └── orders_repository.dart
-│       ├── models/
-│       │   └── order_models.dart
-│       └── orders.dart
-│
+│       │   └── orders_provider.dart
+│       └── data/
+│           ├── orders_repository.dart
+│           └── models/
+│               └── order.dart
 ├── shared/
-│   ├── api/
-│   │   ├── api_client.dart
-│   │   └── api_response.dart
-│   ├── errors/
-│   │   ├── app_error.dart
-│   │   └── error_code.dart
 │   ├── widgets/
-│   │   ├── loading_view.dart
-│   │   ├── error_view.dart
-│   │   └── primary_button.dart
-│   └── utils/
-│       └── currency_formatter.dart
-│
-└── app/
-    ├── main.dart
-    ├── router.dart
-    └── providers.dart
+│   └── theme/
+├── router.dart
+└── main.dart
 ```
+
+**Naming Dart:**
+- File: `snake_case.dart`
+- Class, enum, typedef: `PascalCase`
+- Function, variable, const: `camelCase`
+- Bukan `SCREAMING_SNAKE_CASE` untuk constant — Dart pakai `camelCase`
 
 ---
 
-## 2. Model — `fromJson` eksplisit, bukan magic
+## 2. Model dengan `freezed`
 
 ```dart
-// features/orders/models/order_models.dart
+@freezed
+class Order with _$Order {
+  const factory Order({
+    required String id,
+    required OrderStatus status,
+    required double totalAmount,
+    required DateTime createdAt,
+    String? notes,
+  }) = _Order;
 
-// Shape dari API — field name mengikuti JSON key
-class OrderApiResponse {
-  final String id;
-  final String orderNumber;   // sudah di-rename dari order_number di factory
-  final double totalAmount;
-  final String paymentStatus;
-  final String createdAt;
+  factory Order.fromJson(Map<String, dynamic> json) => _$OrderFromJson(json);
+}
 
-  const OrderApiResponse({
-    required this.id,
-    required this.orderNumber,
-    required this.totalAmount,
-    required this.paymentStatus,
-    required this.createdAt,
-  });
+enum OrderStatus { pending, confirmed, shipped, cancelled }
+```
 
-  factory OrderApiResponse.fromJson(Map<String, dynamic> json) {
-    return OrderApiResponse(
-      id: json['id'] as String,
-      orderNumber: json['order_number'] as String,
-      totalAmount: (json['total_amount'] as num).toDouble(),
-      paymentStatus: json['payment_status'] as String,
-      createdAt: json['created_at'] as String,
+`freezed` memberi `copyWith` yang type-safe, `==` dan `hashCode` otomatis, dan JSON serialization. Jangan buat model mutable tanpa alasan yang kuat.
+
+---
+
+## 3. State management dengan Riverpod
+
+```dart
+@riverpod
+class OrdersNotifier extends _$OrdersNotifier {
+  @override
+  Future<List<Order>> build() async {
+    return ref.read(ordersRepositoryProvider).getOrders();
+  }
+
+  Future<void> cancelOrder(String orderId) async {
+    await ref.read(ordersRepositoryProvider).cancelOrder(orderId);
+    ref.invalidateSelf();
+  }
+}
+
+// Di widget:
+class OrderListScreen extends ConsumerWidget {
+  const OrderListScreen({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final ordersAsync = ref.watch(ordersNotifierProvider);
+
+    return ordersAsync.when(
+      loading: () => const CircularProgressIndicator(),
+      error: (error, _) => Text(error.toString()),
+      data: (orders) => OrderList(orders: orders),
     );
   }
 }
 ```
 
-Jangan:
-
-```dart
-// ❌ Return Map<String, dynamic> dari repository
-Future<Map<String, dynamic>> getOrder(String id) async { ... }
-
-// ❌ json_serializable magic tanpa pengertian shape-nya
-@JsonSerializable()
-class Order { ... }
-// lalu tidak ada test mapper-nya
-```
-
 ---
 
-## 3. Repository — boundary antara API dan app
-
-Repository bertugas: call API, parse response, handle error, return typed model.
+## 4. Navigasi dengan `go_router`
 
 ```dart
-// features/orders/repositories/orders_repository.dart
-import 'package:myapp/shared/api/api_client.dart';
-import 'package:myapp/shared/errors/app_error.dart';
-import '../models/order_models.dart';
+@riverpod
+GoRouter router(RouterRef ref) {
+  final user = ref.watch(authStateProvider);
 
-class OrdersRepository {
-  final ApiClient _client;
-
-  const OrdersRepository({required ApiClient client}) : _client = client;
-
-  Future<OrderApiResponse> getOrderById(String orderId) async {
-    final response = await _client.get('/orders/$orderId');
-
-    if (!response.ok) {
-      throw AppError.fromApiResponse(response.error);
-    }
-
-    return OrderApiResponse.fromJson(response.data as Map<String, dynamic>);
-  }
-
-  Future<OrderApiResponse> cancelOrder(String orderId) async {
-    final response = await _client.post('/orders/$orderId/cancel');
-
-    if (!response.ok) {
-      throw AppError.fromApiResponse(response.error);
-    }
-
-    return OrderApiResponse.fromJson(response.data as Map<String, dynamic>);
-  }
-}
-```
-
----
-
-## 4. Provider dengan Riverpod
-
-Gunakan Riverpod. Tidak perlu BLoC untuk kebanyakan use-case.
-
-```dart
-// features/orders/providers/order_detail_provider.dart
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../repositories/orders_repository.dart';
-import '../models/order_models.dart';
-
-// Inject repository via provider
-final ordersRepositoryProvider = Provider<OrdersRepository>((ref) {
-  return OrdersRepository(client: ref.read(apiClientProvider));
-});
-
-// Provider per order ID — auto-dispose saat tidak dipakai
-final orderDetailProvider = FutureProvider.autoDispose.family<OrderApiResponse, String>(
-  (ref, orderId) async {
-    final repo = ref.read(ordersRepositoryProvider);
-    return repo.getOrderById(orderId);
-  },
-);
-
-// Provider untuk action (cancel order)
-final cancelOrderProvider = Provider.autoDispose.family<Future<void> Function(), String>(
-  (ref, orderId) {
-    return () async {
-      final repo = ref.read(ordersRepositoryProvider);
-      await repo.cancelOrder(orderId);
-      ref.invalidate(orderDetailProvider(orderId));
-    };
-  },
-);
-```
-
----
-
-## 5. Screen tipis — widget yang berisi render
-
-Screen tidak berisi business logic. Screen hanya layout + navigasi + render state dari provider.
-
-```dart
-// features/orders/screens/order_detail_screen.dart
-import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../providers/order_detail_provider.dart';
-import '../widgets/order_status_badge.dart';
-import 'package:myapp/shared/widgets/loading_view.dart';
-import 'package:myapp/shared/widgets/error_view.dart';
-
-class OrderDetailScreen extends ConsumerWidget {
-  final String orderId;
-
-  const OrderDetailScreen({required this.orderId, super.key});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final orderAsync = ref.watch(orderDetailProvider(orderId));
-
-    return Scaffold(
-      appBar: AppBar(title: const Text('Order Detail')),
-      body: orderAsync.when(
-        loading: () => const LoadingView(),
-        error: (error, _) => ErrorView(
-          message: 'Failed to load order. Tap to retry.',
-          onRetry: () => ref.invalidate(orderDetailProvider(orderId)),
-        ),
-        data: (order) => _OrderDetailBody(order: order, orderId: orderId),
-      ),
-    );
-  }
-}
-
-class _OrderDetailBody extends ConsumerWidget {
-  final OrderApiResponse order;
-  final String orderId;
-
-  const _OrderDetailBody({required this.order, required this.orderId});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final cancelOrder = ref.read(cancelOrderProvider(orderId));
-
-    return Padding(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('Order #${order.orderNumber}', style: Theme.of(context).textTheme.titleLarge),
-          const SizedBox(height: 8),
-          OrderStatusBadge(status: order.paymentStatus),
-          const SizedBox(height: 16),
-          if (order.paymentStatus == 'pending')
-            ElevatedButton(
-              onPressed: cancelOrder,
-              child: const Text('Cancel Order'),
-            ),
+  return GoRouter(
+    initialLocation: "/",
+    redirect: (context, state) {
+      if (user == null && state.matchedLocation != "/login") return "/login";
+      if (user != null && state.matchedLocation == "/login") return "/";
+      return null;
+    },
+    routes: [
+      GoRoute(path: "/login", builder: (_, __) => const LoginScreen()),
+      GoRoute(
+        path: "/",
+        builder: (_, __) => const OrderListScreen(),
+        routes: [
+          GoRoute(
+            path: "orders/:orderId",
+            builder: (_, state) => OrderDetailScreen(orderId: state.pathParameters["orderId"]!),
+          ),
         ],
       ),
-    );
-  }
-}
-```
-
-Pisah widget besar jadi widget kecil. `_OrderDetailBody` bukan `_Widget1`. Nama harus jelasin apa yang dirender.
-
----
-
-## 6. Error handling
-
-```dart
-// shared/errors/app_error.dart
-class AppError implements Exception {
-  final String code;
-  final String message;
-  final int statusCode;
-
-  const AppError({
-    required this.code,
-    required this.message,
-    required this.statusCode,
-  });
-
-  factory AppError.fromApiResponse(Map<String, dynamic> errorBody) {
-    return AppError(
-      code: errorBody['code'] as String? ?? 'UNKNOWN_ERROR',
-      message: errorBody['message'] as String? ?? 'An unknown error occurred.',
-      statusCode: errorBody['statusCode'] as int? ?? 500,
-    );
-  }
-
-  @override
-  String toString() => 'AppError($code): $message';
-}
-```
-
-```dart
-// shared/errors/error_code.dart
-abstract class ErrorCode {
-  static const unauthorized = 'UNAUTHORIZED';
-  static const forbidden = 'FORBIDDEN';
-  static const notFound = 'NOT_FOUND';
-  static const conflict = 'CONFLICT';
-  static const validationFailed = 'VALIDATION_FAILED';
-  static const internalError = 'INTERNAL_ERROR';
+    ],
+  );
 }
 ```
 
 ---
 
-## 7. Naming Dart yang manusiawi
-
-File: `snake_case.dart` (wajib, sesuai Dart convention).
-
-Class: `PascalCase`.
+## 5. Widget kecil — extract agresif
 
 ```dart
-// ❌
-class orderDetail extends StatelessWidget {}
-class OrderMgr {}
-class OrderHelpers {}
-
-// ✅
-class OrderDetailScreen extends ConsumerWidget {}
-class OrdersRepository {}
-class OrderStatusBadge extends StatelessWidget {}
-```
-
-Method dan variable: `camelCase`, verb + noun.
-
-```dart
-// ❌
-void getData() {}
-void handleTap() {}
-Future<void> process() {}
-
-// ✅
-Future<OrderApiResponse> fetchOrderById(String orderId) {}
-void cancelOrder() {}
-Future<void> markInvoiceAsPaid(String invoiceId) {}
-```
-
-Provider naming: nama resource + `Provider`.
-
-```dart
-// ❌
-final provider1 = ...
-final dataProvider = ...
-
-// ✅
-final orderDetailProvider = ...
-final ordersRepositoryProvider = ...
-final authSessionProvider = ...
-```
-
----
-
-## 8. Widget decomposition
-
-Aturan sederhana: kalau `build()` lebih dari 50 baris, pecah jadi widget terpisah.
-
-```dart
-// ❌ Satu widget untuk segalanya
-class OrderDetailScreen extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      // ... 200 baris untuk header, body, actions, modal, list, dll
-    );
-  }
-}
-
-// ✅ Pecah berdasarkan concern
-class OrderDetailScreen extends ConsumerWidget {
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Order Detail')),
-      body: _OrderDetailBody(orderId: orderId),
-    );
-  }
-}
-
-class _OrderDetailBody extends ConsumerWidget { ... }
-class _OrderActions extends ConsumerWidget { ... }
-class _OrderItemList extends StatelessWidget { ... }
-```
-
----
-
-## 9. Testing
-
-```dart
-// features/orders/repositories/orders_repository_test.dart
-import 'package:flutter_test/flutter_test.dart';
-import 'package:mocktail/mocktail.dart';
-
-class MockApiClient extends Mock implements ApiClient {}
-
-void main() {
-  group('OrdersRepository.cancelOrder', () {
-    test('throws AppError with NOT_FOUND when order does not exist', () async {
-      final client = MockApiClient();
-      final repo = OrdersRepository(client: client);
-
-      when(() => client.post('/orders/999/cancel')).thenAnswer(
-        (_) async => ApiResponse(ok: false, error: {'code': 'NOT_FOUND', 'message': 'Order not found.'}),
-      );
-
-      expect(
-        () => repo.cancelOrder('999'),
-        throwsA(isA<AppError>().having((e) => e.code, 'code', 'NOT_FOUND')),
-      );
-    });
-
-    test('returns updated order on successful cancellation', () async {
-      final client = MockApiClient();
-      final repo = OrdersRepository(client: client);
-
-      when(() => client.post('/orders/1/cancel')).thenAnswer(
-        (_) async => ApiResponse(ok: true, data: validOrderJson),
-      );
-
-      final order = await repo.cancelOrder('1');
-      expect(order.paymentStatus, 'cancelled');
-    });
-  });
-}
-```
-
-Nama test = dokumentasi behavior. Group berdasarkan method/use-case yang dites.
-
----
-
-## 10. Navigasi dengan go_router
-
-```dart
-// app/router.dart
-import 'package:go_router/go_router.dart';
-
-final router = GoRouter(
-  routes: [
-    GoRoute(
-      path: '/',
-      redirect: (_, __) => '/orders',
-    ),
-    GoRoute(
-      path: '/login',
-      builder: (context, state) => const LoginScreen(),
-    ),
-    GoRoute(
-      path: '/orders',
-      builder: (context, state) => const OrderListScreen(),
-      routes: [
-        GoRoute(
-          path: ':orderId',
-          builder: (context, state) {
-            final orderId = state.pathParameters['orderId']!;
-            return OrderDetailScreen(orderId: orderId);
-          },
+// ❌ build() yang panjang dan dalam
+@override
+Widget build(BuildContext context) {
+  return Scaffold(
+    body: Column(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(16),
+          child: Row(children: [
+            CircleAvatar(backgroundImage: NetworkImage(user.avatarUrl), radius: 24),
+            const SizedBox(width: 12),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(user.name),
+                Text(user.email),
+              ],
+            ),
+          ]),
         ),
+        // 100 baris lagi...
       ],
     ),
-  ],
-);
+  );
+}
+
+// ✅ Extract ke widget sendiri
+@override
+Widget build(BuildContext context) {
+  return Scaffold(
+    body: Column(children: [
+      UserHeader(user: user),
+      // ...
+    ]),
+  );
+}
 ```
 
-Navigasi dari widget:
+---
 
-```dart
-// ✅
-context.go('/orders/$orderId')
-context.push('/orders/$orderId')
+## 6. Tooling
 
-// ❌ Navigator langsung tanpa go_router
-Navigator.of(context).push(MaterialPageRoute(builder: (_) => OrderDetailScreen(orderId: id)))
+```yaml
+# pubspec.yaml
+dependencies:
+  flutter_riverpod: ^2.6.1
+  riverpod_annotation: ^2.6.1
+  go_router: ^14.0.0
+  freezed_annotation: ^2.4.4
+  json_annotation: ^4.9.0
+  dio: ^5.7.0
+
+dev_dependencies:
+  build_runner: ^2.4.13
+  freezed: ^2.5.7
+  json_serializable: ^6.8.0
+  riverpod_generator: ^2.6.1
+  flutter_lints: ^4.0.0
+```
+
+```bash
+dart run build_runner build --delete-conflicting-outputs
+flutter analyze
+flutter test
 ```
