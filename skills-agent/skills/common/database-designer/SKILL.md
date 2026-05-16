@@ -937,3 +937,24 @@ Database designer follows **requirements-driven approach**:
 5. **Optimize** (denormalize strategically)
 
 **Result**: Scalable, maintainable database schema that fits the project's needs.
+
+---
+
+## After Schema Design — Use Backend Skills
+
+Once schema is designed and migrations are ready, use framework-specific skills to implement application code:
+
+### Backend Frameworks
+- **Express.js** → `expressjs-readability` (middleware, routes, services)
+- **NestJS** → `nestjs-readability` (modules, controllers, repositories)
+- **Laravel** → `laravel-readability` (Eloquent models, controllers, services)
+- **FastAPI** → `fastapi-readability` (routers, Pydantic schemas, dependencies)
+- **Golang** → `golang-readability` (handlers, services with sqlc/pgx)
+
+### Next Steps After Design
+1. ✅ Run migrations (framework-specific commands)
+2. ✅ Implement application layer (use backend skill)
+3. ✅ Write tests (factories, seeds, integration tests)
+4. ✅ Monitor query performance (use `database-optimizer` if slow)
+
+**Remember**: Backend skills handle application code. Database skills handle data layer.

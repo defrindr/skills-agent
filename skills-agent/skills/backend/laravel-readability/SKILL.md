@@ -7,8 +7,11 @@ description: >
   memperbaiki service/controller/model yang mulai gemuk, menstandarkan API response/error/request,
   membuat validation/FormRequest, menulis feature/unit test, menaikkan coverage, mengatur queue/job,
   integrasi provider eksternal, observability, HMAC webhook, Docker, atau saat user bilang kodenya
-  keliatan AI, terlalu generic, terlalu magic, atau susah diubah. project-readability.md adalah sumber
-  utama: kalau ada konflik, readability dan coverage tests menang.
+  keliatan AI, terlalu generic, terlalu magic, atau susah diubah.
+  
+  EXCLUDES: Database schema design, migrations, Eloquent relationships, query optimization.
+  Untuk database work, defer ke database-designer dan database-optimizer skills.
+  project-readability.md adalah sumber utama: kalau ada konflik, readability dan coverage tests menang.
 ---
 
 # Laravel Readability Skill
@@ -55,7 +58,144 @@ Taste rules dari `project-readability.md` tetap berlaku penuh.
 
 ---
 
-## 1. Struktur folder: SCALE-AWARE
+## 1. Database Work — Defer to Database Skills
+
+**PENTING**: Skill ini untuk **application code** (Controllers, Services, Jobs, Models), **bukan database design**.
+
+### Kapan Invoke Database Skills
+
+**Sebelum membuat ANY Eloquent model, migration, atau relationship:**
+
+1. **Schema design** → Invoke `database-designer` skill
+   - Trigger: "design orders table", "create users schema", "design relasi order-items"
+   - Output: ERD, Laravel migration files, indexes, Eloquent relationships, foreign key constraints
+   
+2. **Query optimization** → Invoke `database-optimizer` skill
+   - Trigger: "slow query di OrdersRepository", "N+1 problem", "eager loading lambat"
+   - Output: EXPLAIN analysis, index recommendations, Eloquent query optimization (with, select)
+
+### Skill Boundary
+
+✅ **Skill ini (laravel-readability) handle:**
+- Feature/business-domain folder structure
+- Eloquent usage di repositories/services
+- API resource transformations (snake_case → camelCase)
+- Testing database interactions (factories, seeders, DatabaseTransactions)
+- Transaction management (DB::transaction, saveOrFail)
+
+❌ **Skill ini TIDAK handle:**
+- Database schema design → `database-designer`
+- Writing migrations (`php artisan make:migration`) → `database-designer`
+- Index strategies (composite, unique, full-text) → `database-designer`
+- Query performance analysis → `database-optimizer`
+- Eloquent relationship setup (hasMany, belongsTo, morphMany) → `database-designer`
+
+### Workflow yang Benar
+
+**User tanya:** "Bikin orders feature di Laravel API"
+
+**✅ Correct flow:**
+1. Tanya: "Apakah schema orders table sudah di-design? Ada relasi ke users/products?"
+2. Kalau belum → Sarankan invoke `database-designer` dulu:
+   - "Sebelum bikin feature, design schema orders dulu. Invoke: 'Design orders table dengan foreign key ke users dan products, include status enum, timestamps, dan soft deletes. Need indexes on user_id, status, created_at'"
+3. Setelah design ready → User jalankan migration:
+   ```bash
+   # database-designer akan output migration file
+   php artisan migrate
+   ```
+4. Kemudian generate Laravel code:
+   - `app/Orders/Models/Order.php` (Eloquent model dari schema)
+   - `app/Orders/OrdersRepository.php` (Eloquent queries)
+   - `app/Orders/CreateOrderService.php` (business logic)
+   - `app/Orders/Http/Controllers/OrdersController.php` (HTTP layer)
+   - `app/Orders/Http/Resources/OrderResource.php` (snake_case → camelCase)
+   - `app/Orders/Http/Requests/StoreOrderRequest.php` (validation)
+5. Reminder: "Pastikan migration sudah include index di `orders.user_id`, `orders.status`, `orders.created_at`. Check dengan `database-optimizer` jika query lambat."
+
+**❌ Wrong flow:**
+```php
+// Jangan langsung generate Eloquent model tanpa design:
+class Order extends Model {
+    protected $fillable = ['user_id', 'total'];  // ← relasi? index? tipe data decimal?
+}
+```
+
+### Laravel Migration Tips (after schema designed)
+
+**Generate migration** dari database-designer output:
+```bash
+# database-designer akan berikan migration file lengkap:
+php artisan make:migration create_orders_table
+```
+
+**Example migration (dari database-designer):**
+```php
+public function up(): void {
+    Schema::create('orders', function (Blueprint $table) {
+        $table->uuid('id')->primary();
+        $table->foreignUuid('user_id')->constrained()->onDelete('cascade');
+        $table->enum('status', ['pending', 'paid', 'shipped', 'delivered', 'cancelled']);
+        $table->decimal('total', 10, 2);
+        $table->timestamps();
+        $table->softDeletes();
+        
+        // Indexes from database-designer
+        $table->index(['user_id', 'status']);
+        $table->index('created_at');
+    });
+}
+```
+
+**Di application code** (setelah migration run):
+```php
+// app/Orders/Models/Order.php
+class Order extends Model {
+    use SoftDeletes;
+    
+    protected $fillable = ['user_id', 'status', 'total'];
+    protected $casts = ['id' => 'string', 'total' => 'decimal:2'];
+    
+    // Relationships dari database-designer
+    public function user(): BelongsTo {
+        return $this->belongsTo(User::class);
+    }
+    
+    public function items(): HasMany {
+        return $this->hasMany(OrderItem::class);
+    }
+}
+
+// app/Orders/OrdersRepository.php
+class OrdersRepository {
+    public function findByUserWithItems(string $userId): Collection {
+        return Order::with('items')  // avoid N+1 (database-optimizer recommendation)
+            ->where('user_id', $userId)
+            ->orderBy('created_at', 'desc')
+            ->get();
+    }
+}
+```
+
+**API Resource transformation** (snake_case DB → camelCase response):
+```php
+// app/Orders/Http/Resources/OrderResource.php
+class OrderResource extends JsonResource {
+    public function toArray(Request $request): array {
+        return [
+            'id' => $this->id,
+            'userId' => $this->user_id,           // snake_case → camelCase
+            'status' => $this->status,
+            'total' => $this->total,
+            'createdAt' => $this->created_at,     // snake_case → camelCase
+            'updatedAt' => $this->updated_at,
+        ];
+    }
+}
+```
+
+---
+
+## 2. Struktur folder: SCALE-AWARE
 
 **IMPORTANT:** Struktur harus match dengan project complexity!
 

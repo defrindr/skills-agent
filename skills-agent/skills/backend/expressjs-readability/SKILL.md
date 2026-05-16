@@ -6,9 +6,13 @@ description: >
   dan struktur domain-first yang tidak terasa seperti tutorial.
   Gunakan skill ini saat init project Express, membuat route baru, code review,
   refactor handler, validasi request body, setup testing, atau Docker.
+  
   Trigger: "setup express", "init express", "express router", "express middleware",
-  "express typescript", "express error handling", "express zod", "express prisma",
-  "review express", "nodejs api", "expressjs structure", "express best practice".
+  "express typescript", "express error handling", "express zod", "review express",
+  "nodejs api", "expressjs structure", "express best practice".
+  
+  EXCLUDES: Database schema design, migrations, query optimization.
+  Untuk database work, defer ke database-designer dan database-optimizer skills.
 ---
 
 # Express.js Readability Skill
@@ -105,7 +109,85 @@ declare namespace Express {
 
 ---
 
-## 1. Struktur folder — scale-aware
+## 1. Database Work — Defer to Database Skills
+
+**PENTING**: Skill ini untuk **application code** (routes, middleware, services), **bukan database design**.
+
+### Kapan Invoke Database Skills
+
+**Sebelum menulis kode apapun yang akses database:**
+
+1. **Schema design** → Invoke `database-designer` skill
+   - Trigger: "design schema untuk orders", "create user model", "design relasi user-orders"
+   - Output: ERD, Prisma schema, indexes, relationships, migration strategy
+   
+2. **Query optimization** → Invoke `database-optimizer` skill
+   - Trigger: "query lambat", "N+1 problem", "perlu index", "optimize repository"
+   - Output: EXPLAIN analysis, index recommendations, query rewrites
+
+### Skill Boundary
+
+✅ **Skill ini (expressjs-readability) handle:**
+- Middleware pipeline dan error handling
+- Router/service/repository patterns (application layer)
+- Transaction management (scale-aware)
+- Testing database logic (mocking, integration tests)
+
+❌ **Skill ini TIDAK handle:**
+- Schema design → `database-designer`
+- Migrations (Prisma migrate, SQL files) → `database-designer`
+- Query optimization (EXPLAIN, indexes) → `database-optimizer`
+- Normalization (1NF, 2NF, 3NF) → `database-designer`
+
+### Workflow yang Benar
+
+**User tanya:** "Bikin endpoint orders di Express API"
+
+**✅ Correct flow:**
+1. Tanya: "Apakah schema Order sudah di-design? Ada relasi ke User/Product?"
+2. Kalau belum → Sarankan invoke `database-designer` dulu:
+   - "Sebelum bikin endpoint, design schema Order dulu. Invoke: 'Design orders schema dengan relasi ke users dan products, include timestamps dan soft delete'"
+3. Setelah schema ready (user sudah run `npx prisma migrate dev`):
+   - Generate Express route/service code
+   - Reminder: "Pastikan sudah ada index di `orders.userId` dan `orders.createdAt` (check dengan `database-optimizer` jika perlu)"
+
+**❌ Wrong flow:**
+```typescript
+// Jangan langsung generate tanpa cek schema:
+ordersRouter.post("/", async (req, res) => {
+  const order = await db.order.create({ data: { ...req.body } })
+  res.json(order)
+})
+```
+
+### Prisma Tips (after schema designed)
+
+**Generate Prisma client** setelah migration:
+```bash
+npx prisma migrate dev --name add_orders
+npx prisma generate
+```
+
+**Di application code:**
+```typescript
+// src/db.ts
+import { PrismaClient } from '@prisma/client'
+export const db = new PrismaClient()
+
+// features/orders/orders.service.ts
+import { db } from '@/db'
+
+export async function createOrder(userId: string, input: CreateOrderInput) {
+  return db.order.create({
+    data: { userId, ...input },
+    include: { items: true }  // jika relasi sudah di-design
+  })
+}
+```
+
+---
+
+## 2. Struktur folder — scale-aware
 
 **Aturan**: Ikuti `common/project-readability` untuk scale-aware architecture. Contoh di bawah untuk referensi saja.
 

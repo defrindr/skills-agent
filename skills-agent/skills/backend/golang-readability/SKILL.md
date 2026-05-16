@@ -9,9 +9,13 @@ description: >
   bernama "utils", "common", "helpers", error yang di-ignore dengan `_`,
   atau naming yang terlalu verbose ala Java.
   Cocok untuk project yang pakai Gin, Fiber, Echo, Chi, atau net/http murni.
+  
   Trigger: "setup golang", "init go", "go api", "go gin", "go fiber", "go echo",
   "go error handling", "go testing", "review go", "go structure", "go best practice",
   "golang project structure", "go clean architecture".
+  
+  EXCLUDES: Database schema design, SQL migrations, query optimization.
+  Untuk database work, defer ke database-designer dan database-optimizer skills.
 ---
 
 # Go Readability Skill
@@ -125,7 +129,70 @@ func (r *Repository) UpdateOrderStatus(ctx context.Context, orderID string, stat
 
 ---
 
-## 1. Struktur — scale-aware dengan `internal/`
+## 1. Database Work — Defer to Database Skills
+
+**PENTING**: Skill ini untuk **application code** (handlers, services, repositories), **bukan database design**.
+
+### Kapan Invoke Database Skills
+
+**Sebelum menulis ANY SQL, migrations, atau repository code:**
+
+1. **Schema design** → Invoke `database-designer` skill
+   - Trigger: "design orders table", "create users schema", "design relasi order-items"
+   - Output: ERD, SQL CREATE TABLE statements, indexes, constraints, migration files (golang-migrate compatible)
+   
+2. **Query optimization** → Invoke `database-optimizer` skill
+   - Trigger: "slow query di ListOrders", "N+1 problem", "need index"
+   - Output: EXPLAIN analysis, index recommendations, query rewrites
+
+### Go Database Library Preference
+
+**Skill ini recommend:**
+- ✅ **sqlc** (type-safe SQL, explicit queries, no hidden behavior)
+- ✅ **pgx** (PostgreSQL driver, full control)
+- ⚠️ **GORM** (convenient tapi menyembunyikan queries, N+1 risks)
+
+**database-designer akan provide:**
+- Raw SQL schemas (perfect untuk sqlc)
+- Index strategies
+- Migration patterns
+
+### Skill Boundary
+
+✅ **Skill ini handle:**
+- Domain-first folder structure (internal/)
+- Repository patterns (sqlc/pgx/GORM)
+- Context cancellation untuk DB queries
+- Error handling (errors.Is, fmt.Errorf dengan %w)
+- Testing dengan mock repositories
+
+❌ **Skill ini TIDAK handle:**
+- Database schema design → `database-designer`
+- SQL migrations → `database-designer`
+- Query performance → `database-optimizer`
+- Index strategies → `database-designer/database-optimizer`
+
+### Workflow yang Benar
+
+**User tanya:** "Bikin orders feature di Gin API"
+
+**✅ Correct flow:**
+1. Tanya: "Apakah schema orders table sudah di-design?"
+2. Kalau belum → Sarankan invoke `database-designer`
+3. Setelah design ready → User buat migration
+4. Jika pakai sqlc → Write queries, run `sqlc generate`
+5. Generate application code
+6. Reminder: Check indexes dengan `database-optimizer` jika lambat
+
+**❌ Wrong flow:**
+```go
+// Jangan langsung tulis SQL tanpa design
+rows, err := db.Query("SELECT * FROM orders WHERE user_id = ?", userId)
+```
+
+---
+
+## 2. Struktur — scale-aware dengan `internal/`
 
 **Aturan**: Ikuti `common/project-readability` untuk scale-aware architecture. Contoh di bawah untuk referensi saja.
 

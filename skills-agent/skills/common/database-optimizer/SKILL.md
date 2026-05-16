@@ -900,3 +900,25 @@ Database optimization follows **measure-optimize-verify cycle**:
 5. **Monitor continuously** (metrics, alerts)
 
 **Result**: Fast database queries without breaking existing logic.
+
+---
+
+## After Optimization — Update Application Code
+
+Once queries are optimized, apply changes in framework-specific code:
+
+### Backend Frameworks
+- **Express.js** → `expressjs-readability` (update Prisma queries in services/repositories)
+- **NestJS** → `nestjs-readability` (apply eager loading in repositories, add indexes to entities)
+- **Laravel** → `laravel-readability` (optimize Eloquent queries with `with()`, add indexes to migrations)
+- **FastAPI** → `fastapi-readability` (use selectinload/joinedload in SQLAlchemy queries)
+- **Golang** → `golang-readability` (rewrite queries in sqlc/pgx, add composite indexes)
+
+### Common Optimizations to Apply
+1. **N+1 fixes** → Update ORM queries to eager load relationships
+2. **Index additions** → Add migration files for new indexes
+3. **Query rewrites** → Simplify complex queries, remove unnecessary JOINs
+4. **Pagination** → Replace OFFSET with cursor-based pagination
+5. **Caching** → Add Redis/in-memory cache for hot data
+
+**Remember**: Query optimization insights must be implemented in application code. Use backend skills for framework-specific syntax.

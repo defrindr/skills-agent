@@ -6,9 +6,13 @@ description: >
   yang memanfaatkan fitur modern (async/await, union types, match statement).
   Gunakan skill ini saat init project FastAPI, membuat router baru, code review,
   refactor endpoint/service, validasi payload, setup testing, atau Docker.
+  
   Trigger: "setup fastapi", "init fastapi", "fastapi router", "fastapi pydantic",
   "fastapi dependency injection", "fastapi error handling", "fastapi testing",
   "review fastapi", "python api", "fastapi structure", "fastapi best practice".
+  
+  EXCLUDES: Database schema design, SQLAlchemy models, Alembic migrations, query optimization.
+  Untuk database work, defer ke database-designer dan database-optimizer skills.
 ---
 
 # FastAPI Readability Skill
@@ -83,7 +87,188 @@ async def create_order(body: CreateOrderInput, service: OrdersService = Depends(
 
 ---
 
-## 1. Struktur folder — scale-aware
+## 1. Database Work — Defer to Database Skills
+
+**PENTING**: Skill ini untuk **application code** (routers, services, dependencies), **bukan database design**.
+
+### Klarifikasi: `schemas.py` vs Database Schema
+
+**CRITICAL**: Di FastAPI, `schemas.py` = **Pydantic validation models**, BUKAN database schema!
+
+```python
+# schemas.py = REQUEST/RESPONSE VALIDATION (Pydantic)
+from pydantic import BaseModel, Field, UUID4
+
+class CreateOrderInput(BaseModel):
+    product_id: UUID4
+    quantity: int = Field(gt=0, le=99)
+    notes: str | None = Field(None, max_length=500)
+
+class OrderResponse(BaseModel):
+    id: UUID4
+    user_id: UUID4
+    product_id: UUID4
+    quantity: int
+    created_at: datetime
+```
+
+```python
+# models.py = DATABASE MODELS (SQLAlchemy)
+from sqlalchemy import Column, Integer, ForeignKey, UUID
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+
+class Order(Base):
+    __tablename__ = "orders"
+    
+    id: Mapped[UUID] = mapped_column(primary_key=True)
+    user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id"))
+    product_id: Mapped[UUID] = mapped_column(ForeignKey("products.id"))
+    quantity: Mapped[int]
+    created_at: Mapped[datetime] = mapped_column(server_default=func.now())
+    
+    # Relationships from database-designer
+    user: Mapped["User"] = relationship(back_populates="orders")
+    product: Mapped["Product"] = relationship()
+```
+
+**Jangan sampai bingung**: Pydantic validation ≠ database schema design!
+
+### Kapan Invoke Database Skills
+
+**Sebelum membuat ANY SQLAlchemy model atau Alembic migration:**
+
+1. **Schema design** → Invoke `database-designer` skill
+   - Trigger: "design Order model", "create users table", "design relasi order-items"
+   - Output: ERD, SQLAlchemy models (with Mapped types), Alembic migration, indexes, constraints
+   
+2. **Query optimization** → Invoke `database-optimizer` skill
+   - Trigger: "slow query di get_orders", "N+1 problem with relationships", "need eager loading"
+   - Output: EXPLAIN analysis, selectinload vs joinedload recommendations, index suggestions
+
+### Skill Boundary
+
+✅ **Skill ini (fastapi-readability) handle:**
+- Feature-first folder structure
+- Pydantic validation schemas (request/response)
+- Dependency injection (`Depends(get_db)`, `Depends(get_current_user)`)
+- Service/repository patterns (application layer)
+- Error handling (HTTPException, AppError)
+
+❌ **Skill ini TIDAK handle:**
+- SQLAlchemy model design → `database-designer`
+- Alembic migrations → `database-designer`
+- Query optimization (EXPLAIN, indexes) → `database-optimizer`
+- Relationship strategies (lazy vs eager) → `database-optimizer`
+
+### Workflow yang Benar
+
+**User tanya:** "Bikin orders endpoint di FastAPI"
+
+**✅ Correct flow:**
+1. Tanya: "Apakah model Order sudah di-design? Ada relasi ke User/Product?"
+2. Kalau belum → Sarankan invoke `database-designer` dulu:
+   - "Sebelum bikin endpoint, design model Order dulu. Invoke: 'Design orders model dengan ForeignKey ke users dan products, include status enum, timestamps, dan soft delete. Need indexes on user_id, status, created_at'"
+3. Setelah design ready → User jalankan migration:
+   ```bash
+   # database-designer akan output Alembic migration
+   alembic upgrade head
+   ```
+4. Kemudian generate FastAPI code:
+   - `features/orders/schemas.py` (Pydantic validation)
+   - `features/orders/models.py` (from database-designer output)
+   - `features/orders/service.py` (business logic)
+   - `features/orders/router.py` (HTTP layer)
+5. Reminder: "Pastikan migration sudah include index di `orders.user_id` dan `orders.created_at`. Check dengan `database-optimizer` jika query lambat."
+
+**❌ Wrong flow:**
+```python
+# Jangan langsung generate SQLAlchemy model tanpa design:
+class Order(Base):
+    __tablename__ = "orders"
+    id = Column(Integer, primary_key=True)  # ← tipe data? UUID? relasi?
+    user_id = Column(Integer)               # ← foreign key? index?
+    total = Column(Float)                   # ← precision? decimal?
+```
+
+### SQLAlchemy/Alembic Tips (after schema designed)
+
+**Generate migration** dari database-designer output:
+```bash
+# database-designer akan berikan Alembic migration file
+alembic revision --autogenerate -m "add orders table"
+alembic upgrade head
+```
+
+**Di application code** (setelah migration run):
+```python
+# features/orders/models.py (from database-designer)
+from sqlalchemy import Enum, ForeignKey, func
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+from decimal import Decimal
+
+class Order(Base):
+    __tablename__ = "orders"
+    
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    status: Mapped[str] = mapped_column(Enum("pending", "paid", "shipped", name="order_status"))
+    total: Mapped[Decimal] = mapped_column(precision=10, scale=2)
+    created_at: Mapped[datetime] = mapped_column(server_default=func.now())
+    
+    # Relationships from database-designer
+    user: Mapped["User"] = relationship(back_populates="orders")
+    items: Mapped[list["OrderItem"]] = relationship(back_populates="order")
+    
+    # Indexes from database-designer
+    __table_args__ = (
+        Index("ix_orders_user_status", "user_id", "status"),
+        Index("ix_orders_created_at", "created_at"),
+    )
+```
+
+```python
+# features/orders/service.py (application layer)
+from sqlalchemy import select
+from sqlalchemy.orm import selectinload
+
+class OrdersService:
+    def __init__(self, session: AsyncSession):
+        self.session = session
+    
+    async def get_user_orders(self, user_id: UUID) -> list[Order]:
+        # selectinload from database-optimizer recommendation (avoid N+1)
+        stmt = (
+            select(Order)
+            .options(selectinload(Order.items))
+            .where(Order.user_id == user_id)
+            .order_by(Order.created_at.desc())
+        )
+        result = await self.session.execute(stmt)
+        return result.scalars().all()
+```
+
+```python
+# features/orders/schemas.py (Pydantic validation)
+from pydantic import BaseModel, UUID4, Field
+from decimal import Decimal
+
+class CreateOrderInput(BaseModel):
+    product_id: UUID4
+    quantity: int = Field(gt=0, le=99)
+
+class OrderResponse(BaseModel):
+    id: UUID4
+    user_id: UUID4
+    status: str
+    total: Decimal
+    created_at: datetime
+    
+    model_config = {"from_attributes": True}  # untuk .model_validate(order)
+```
+
+---
+
+## 2. Struktur folder — scale-aware
 
 **Aturan**: Ikuti `common/project-readability` untuk scale-aware architecture. Contoh di bawah untuk referensi saja.
 

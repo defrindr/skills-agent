@@ -8,6 +8,9 @@ description: >
   refactor service/controller, standarisasi response/error/request, validasi payload,
   setup logging/Sentry, Docker containerization, atau saat kode terasa terlalu generic,
   over-engineered, robotic, atau keliatan AI banget.
+  
+  EXCLUDES: Database schema design, entity relationships, migrations, query optimization.
+  Untuk database work, defer ke database-designer dan database-optimizer skills.
 ---
 
 # NestJS Readability Skill
@@ -40,7 +43,132 @@ Kalau ada konflik antara kebiasaan NestJS, tutorial internet, dan aturan readabi
 
 ---
 
-## 1. Struktur folder — scale-aware feature-first
+## 1. Database Work — Defer to Database Skills
+
+**PENTING**: Skill ini untuk **application code** (modules, controllers, services), **bukan database design**.
+
+### Klarifikasi: `.schema.ts` vs Database Schema
+
+**CRITICAL**: Di NestJS, `.schema.ts` = **Zod validation schema**, BUKAN database schema!
+
+```typescript
+// orders.schema.ts = REQUEST VALIDATION (Zod)
+import { z } from 'zod'
+
+export const CreateOrderSchema = z.object({
+  productId: z.string().uuid(),
+  quantity: z.number().int().positive(),
+})
+
+export type CreateOrderInput = z.infer<typeof CreateOrderSchema>
+```
+
+```typescript
+// orders.entity.ts = DATABASE MODEL (TypeORM/Prisma)
+import { Entity, PrimaryColumn, Column, ManyToOne } from 'typeorm'
+
+@Entity('orders')
+export class Order {
+  @PrimaryColumn('uuid') id: string
+  @Column('uuid') userId: string
+  @Column('uuid') productId: string
+  @Column('int') quantity: number
+  @ManyToOne(() => User) user: User
+  @ManyToOne(() => Product) product: Product
+}
+```
+
+**Jangan sampai bingung**: validation schema ≠ database schema design!
+
+### Kapan Invoke Database Skills
+
+**Sebelum membuat ANY entity/model/repository:**
+
+1. **Schema design** → Invoke `database-designer` skill
+   - Trigger: "design Order entity", "create users table", "design relasi order-items"
+   - Output: ERD, TypeORM/Prisma entity definitions, indexes, relationships, migrations
+   
+2. **Query optimization** → Invoke `database-optimizer` skill
+   - Trigger: "repository query lambat", "N+1 di OrdersService", "perlu index"
+   - Output: EXPLAIN analysis, eager loading strategies (leftJoinAndSelect), index recommendations
+
+### Skill Boundary
+
+✅ **Skill ini (nestjs-readability) handle:**
+- Feature-first module structure
+- Controller → Service → Repository pattern (application layer)
+- DTO dan validation schemas (Zod/class-validator)
+- Error handling (AppError, HttpException)
+- Testing (unit tests dengan mock repository, integration tests)
+
+❌ **Skill ini TIDAK handle:**
+- Database schema design → `database-designer`
+- TypeORM entity relationships (@ManyToOne, @OneToMany) → `database-designer`
+- Migrations (TypeORM, Prisma) → `database-designer`
+- Query performance (EXPLAIN, indexes) → `database-optimizer`
+
+### Workflow yang Benar
+
+**User tanya:** "Bikin orders module di NestJS"
+
+**✅ Correct flow:**
+1. Tanya: "Apakah entity Order sudah di-design? Ada relasi ke User/Product?"
+2. Kalau belum → Sarankan invoke `database-designer` dulu:
+   - "Sebelum bikin module, design entity Order dulu. Invoke: 'Design orders entity dengan relasi ManyToOne ke users dan products, include timestamps dan soft delete'"
+3. Setelah entity ready (user sudah run migration):
+   - Generate NestJS module structure:
+     - `orders.schema.ts` (Zod validation)
+     - `orders.entity.ts` (from database-designer output)
+     - `orders.repository.ts` (application layer)
+     - `orders.service.ts`, `orders.controller.ts`
+4. Reminder: "Pastikan sudah ada index di `orders.userId` dan `orders.createdAt` (check dengan `database-optimizer` jika perlu)"
+
+**❌ Wrong flow:**
+```typescript
+// Jangan langsung generate TypeORM entity tanpa design:
+@Entity()
+export class Order {
+  @PrimaryGeneratedColumn() id: number
+  @Column() userId: number  // ← tipe data? relasi? index?
+  @Column() total: number   // ← decimal precision? currency?
+}
+```
+
+### TypeORM/Prisma Tips (after schema designed)
+
+**Generate migration** setelah entity di-design:
+```bash
+# TypeORM
+npm run typeorm migration:generate -- src/migrations/AddOrders
+npm run typeorm migration:run
+
+# Prisma
+npx prisma migrate dev --name add_orders
+npx prisma generate
+```
+
+**Di application code:**
+```typescript
+// orders.repository.ts (after schema designed)
+@Injectable()
+export class OrdersRepository {
+  constructor(
+    @InjectRepository(Order) private repo: Repository<Order>,
+  ) {}
+  
+  async findByUserId(userId: string): Promise<Order[]> {
+    return this.repo.find({
+      where: { userId },
+      relations: ['items', 'user'],  // jika relasi sudah di-design
+      order: { createdAt: 'DESC' },
+    })
+  }
+}
+```
+
+---
+
+## 2. Struktur folder — scale-aware feature-first
 
 **Aturan**: Ikuti `common/project-readability` untuk scale-aware architecture. Contoh di bawah untuk referensi saja.
 
