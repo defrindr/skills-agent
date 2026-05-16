@@ -19,6 +19,18 @@ Auto-configures:
 - ✅ Configures OpenCode MCP server
 - ✅ Ready to use!
 
+### Uninstall
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/defrindr/skills-agent/main/uninstall.sh | bash
+```
+
+Completely removes:
+- ❌ Installation directory (`~/.skills-agent`)
+- ❌ Skill symlinks (21 skills)
+- ❌ OpenCode MCP configuration
+- ❌ Optional: PATH entries (manual)
+
 ---
 
 ## 🚀 Quick Start
@@ -216,11 +228,33 @@ Should have:
 }
 ```
 
-### Uninstall
+### Uninstall / Clean Reinstall
 
+**Option 1: Use uninstall script (Recommended)**
 ```bash
+curl -fsSL https://raw.githubusercontent.com/defrindr/skills-agent/main/uninstall.sh | bash
+```
+
+**Option 2: Manual removal**
+```bash
+# Remove installation
 rm -rf ~/.skills-agent
-# Manually remove from ~/.config/opencode/opencode.json
+
+# Remove skill symlinks (21 skills)
+rm -rf ~/.agents/skills/codebase-explorer
+rm -rf ~/.agents/skills/code-health
+rm -rf ~/.agents/skills/database-*
+rm -rf ~/.agents/skills/*-readability
+# ... (or remove individually)
+
+# Remove from OpenCode config
+# Edit ~/.config/opencode/opencode.json
+# Delete "skills-agent" entry from "mcpServers"
+```
+
+**To reinstall after uninstall:**
+```bash
+curl -fsSL https://raw.githubusercontent.com/defrindr/skills-agent/main/install.sh | bash
 ```
 
 ---

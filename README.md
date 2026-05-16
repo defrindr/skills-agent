@@ -12,6 +12,14 @@ curl -fsSL https://raw.githubusercontent.com/defrindr/skills-agent/main/install.
 
 Auto-configures everything. Restart OpenCode after install.
 
+### Uninstall
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/defrindr/skills-agent/main/uninstall.sh | bash
+```
+
+Removes installation, symlinks, and OpenCode MCP configuration.
+
 ---
 
 ## 📦 Structure
@@ -19,6 +27,7 @@ Auto-configures everything. Restart OpenCode after install.
 ```
 skills/
 ├── install.sh               # One-command installer
+├── uninstall.sh             # One-command uninstaller
 ├── AGENTS.md                # Repository guidelines
 └── skills-agent/            # MCP server package
     ├── skills/              # 21 skills (Bahasa Indonesia)
