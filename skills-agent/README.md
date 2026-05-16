@@ -8,40 +8,33 @@
 
 ## ⚡ Quick Install
 
-**Latest release (Recommended):**
+**One-command installation:**
 
 ```bash
-curl -fsSL https://github.com/defrindr/skills-agent/releases/latest/download/install.sh | bash
+bash <(curl -fsSL https://raw.githubusercontent.com/defrindr/skills-agent-installer/main/install.sh)
 ```
 
-**Specific version:**
+**Prerequisites:**
+1. Node.js 18+ and npm
+2. GitHub CLI: `brew install gh`
+3. Authentication: `gh auth login`
+4. Repository access
+
+See [skills-agent-installer](https://github.com/defrindr/skills-agent-installer) for detailed setup guide.
+
+### Manual Installation
 
 ```bash
-SKILLS_AGENT_VERSION=v0.1.0 curl -fsSL https://github.com/defrindr/skills-agent/releases/latest/download/install.sh | bash
+gh repo clone defrindr/skills-agent ~/.skills-agent
+cd ~/.skills-agent/skills-agent
+npm install && npm run build && npm run setup
 ```
-
-Auto-configures:
-- ✅ Downloads from GitHub Releases (no git auth required)
-- ✅ Builds & installs dependencies
-- ✅ Links 21 skills to `~/.agents/skills/`
-- ✅ Configures OpenCode MCP server
-- ✅ Ready to use!
-
-**Note:** Works with private repositories via GitHub Releases.
 
 ### Uninstall
-
-After installation, run:
 
 ```bash
 bash ~/.skills-agent/skills-agent/uninstall.sh
 ```
-
-Completely removes:
-- ❌ Installation directory (`~/.skills-agent`)
-- ❌ Skill symlinks (21 skills)
-- ❌ OpenCode MCP configuration
-- ❌ Optional: PATH entries (manual)
 
 ---
 

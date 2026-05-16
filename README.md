@@ -6,31 +6,50 @@ AI agent skills for OpenCode + Skills Agent MCP server.
 
 ## ⚡ Quick Install
 
-**Latest release (Recommended):**
+**One-command installation via public installer:**
 
 ```bash
-curl -fsSL https://github.com/defrindr/skills-agent/releases/latest/download/install.sh | bash
+bash <(curl -fsSL https://raw.githubusercontent.com/defrindr/skills-agent-installer/main/install.sh)
 ```
 
-**Specific version:**
+**Prerequisites:**
+1. Node.js 18+ and npm
+2. GitHub CLI: `brew install gh` (or: https://cli.github.com)
+3. Authentication: `gh auth login`
+4. Repository access (request from owner if needed)
+
+The installer will:
+- ✅ Check dependencies and authentication
+- ✅ Clone private repository
+- ✅ Install & build
+- ✅ Link 21 skills to `~/.agents/skills/`
+- ✅ Configure OpenCode MCP server
+
+See [skills-agent-installer](https://github.com/defrindr/skills-agent-installer) for full documentation.
+
+### Manual Installation
+
+If you prefer manual steps:
 
 ```bash
-SKILLS_AGENT_VERSION=v0.1.0 curl -fsSL https://github.com/defrindr/skills-agent/releases/latest/download/install.sh | bash
+# Clone with gh CLI (recommended)
+gh repo clone defrindr/skills-agent ~/.skills-agent
+
+# Or with SSH
+git clone git@github.com:defrindr/skills-agent.git ~/.skills-agent
+
+# Build and setup
+cd ~/.skills-agent/skills-agent
+npm install && npm run build && npm run setup
 ```
-
-Auto-configures everything. Restart OpenCode after install.
-
-**Note:** Installs from GitHub Releases (no git auth required). Works even with private repository.
 
 ### Uninstall
-
-After installation, run:
 
 ```bash
 bash ~/.skills-agent/skills-agent/uninstall.sh
 ```
 
-Removes installation, symlinks, and OpenCode MCP configuration.
+Removes installation, all 21 skill symlinks, and OpenCode MCP configuration.
 
 ---
 
