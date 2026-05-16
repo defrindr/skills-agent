@@ -29,6 +29,19 @@ complexity: simple
 
 Goal: Update aplikasi UI theme (visual design) tanpa break business logic atau functionality.
 
+> **PENTING**: Untuk design tokens, color system, spacing scale, typography rules, shadow/radius standards, dan **professional visual principles** — ikuti `frontend/general-styling`.
+> Skill ini hanya mencakup **workflow untuk redesign theme** dan **preserve logic saat update styling**.
+> 
+> **General-styling adalah authority** untuk:
+> - Design tokens structure (colors, spacing, typography, shadows, radius)
+> - Color palette rules (semantic naming, gray scale, contrast minimum WCAG AA)
+> - Spacing system (kelipatan 4px/8px, no random values)
+> - Typography scale (ratio 1.125/1.25, line height, font weight)
+> - Professional component patterns (no SMK 2016 vibes, no gradient norak, shadow max 2 layer)
+> - Animation rules (150-300ms, purposeful, not decorative)
+> 
+> **CRITICAL**: Saat redesign theme, new theme HARUS follow `general-styling` rules. Jangan create theme baru yang melanggar professional standards (gradient berlebihan, spacing random, shadow 3+ layer, dll).
+
 ## Prinsip Utama
 
 **VISUAL ONLY - LOGIC UNTOUCHED!**
@@ -127,9 +140,17 @@ export const theme = {
 };
 ```
 
-## Phase 2: Design New Theme
+## Phase 2: Design New Theme (FOLLOW general-styling)
 
-### Create Design Tokens
+### Create Design Tokens (Ikuti general-styling rules)
+
+**CRITICAL**: New theme HARUS follow `general-styling` principles:
+- Colors: semantic naming + numbered scale (50-900), WCAG AA contrast minimum
+- Spacing: kelipatan 4px atau 8px, no arbitrary values
+- Typography: type scale ratio 1.125 atau 1.25
+- Shadow: max 2 layer (sm, md, lg only)
+- Radius: reasonable (sm, md, lg, xl only — no 50px pill shape tanpa alasan)
+- No gradient norak (solid color default, gradient hanya kalau ada design reason)
 
 **Before (old theme):**
 ```javascript
@@ -145,17 +166,74 @@ colors: {
 }
 ```
 
-**After (new theme - example: purple):**
+**After (new theme - example: purple, FOLLOW general-styling):**
 ```javascript
 // tailwind.config.js
 colors: {
   primary: {
     50: '#faf5ff',
     100: '#f3e8ff',
+    200: '#e9d5ff',
+    300: '#d8b4fe',
+    400: '#c084fc',
     500: '#a855f7',  // Main purple
+    600: '#9333ea',  // Hover state
+    700: '#7e22ce',
+    800: '#6b21a8',
+    900: '#581c87',
+  },
+  // Semantic colors (dari general-styling)
+  success: {
+    DEFAULT: '#16a34a',  // green-600
+    hover: '#15803d',     // green-700
+  },
+  danger: {
+    DEFAULT: '#dc2626',   // red-600
+    hover: '#b91c1c',     // red-700
+  },
+}
+```
+
+### Anti-Pattern: Jangan Bikin Theme SMK 2016
+
+```javascript
+// ❌ BAD: Theme yang melanggar general-styling
+colors: {
+  primary: {
+    DEFAULT: '#3498db',  // random hex tanpa scale
+  },
+  'sky-gradient-start': '#667eea',  // gradient norak
+  'sky-gradient-end': '#764ba2',
+}
+
+boxShadow: {
+  'mega': '0 10px 30px rgba(0,0,0,0.3), 0 20px 60px rgba(0,0,0,0.2), 0 40px 120px rgba(0,0,0,0.1)',  // 3+ layer
+}
+
+borderRadius: {
+  'pill': '50px',  // pill shape tanpa alasan
+}
+
+// ✅ GOOD: Theme yang follow general-styling
+colors: {
+  primary: {
+    50: '#faf5ff',
+    // ... full scale 50-900
+    500: '#a855f7',
     600: '#9333ea',
     900: '#581c87',
   },
+}
+
+boxShadow: {
+  'sm': '0 1px 2px 0 rgba(0,0,0,0.05)',
+  'md': '0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06)',  // max 2 layer
+}
+
+borderRadius: {
+  'md': '0.375rem',  // 6px
+  'lg': '0.5rem',    // 8px
+  'xl': '0.75rem',   // 12px
 }
 ```
 
@@ -496,7 +574,7 @@ module.exports = {
 ">
 ```
 
-## Real-World Example: Dashboard Redesign
+## Real-World Example: Dashboard Redesign (Follow general-styling)
 
 ### Before (Blue theme):
 
@@ -537,7 +615,7 @@ export function Dashboard() {
 }
 ```
 
-### After (Purple theme):
+### After (Purple theme - PROFESSIONAL, follow general-styling):
 
 ```tsx
 // Dashboard.tsx
@@ -549,15 +627,13 @@ export function Dashboard() {
   }, []);
   
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 to-pink-50">
+    <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <header className="bg-white/80 backdrop-blur-sm border-b border-purple-200 shadow-lg">
-        <div className="max-w-7xl mx-auto px-6 py-5 flex items-center justify-between">
-          <h1 className="text-3xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
-            Dashboard
-          </h1>
+      <header className="bg-white border-b border-gray-200 shadow-sm">
+        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+          <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
           <button 
-            className="px-6 py-2.5 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-xl hover:opacity-90 transition-opacity shadow-lg"
+            className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors duration-150"
             onClick={handleNewItem}  // ← UNCHANGED
           >
             New Item
@@ -566,8 +642,8 @@ export function Dashboard() {
       </header>
       
       {/* Content */}
-      <main className="max-w-7xl mx-auto px-6 py-10">
-        <div className="grid grid-cols-3 gap-8">
+      <main className="max-w-7xl mx-auto px-6 py-8">
+        <div className="grid grid-cols-3 gap-6">
           {data.map(item => (  // ← UNCHANGED
             <Card key={item.id} {...item} />
           ))}
@@ -578,14 +654,12 @@ export function Dashboard() {
 }
 ```
 
-**Changes made (visual only):**
-- ✅ Background: `bg-gray-50` → gradient purple/pink
-- ✅ Header: white → white with blur effect
-- ✅ Border: gray → purple
-- ✅ Title: black → gradient text
-- ✅ Button: blue → purple/pink gradient
-- ✅ Spacing: slightly increased
-- ✅ Shadows: more prominent
+**Changes made (visual only, follow general-styling):**
+- ✅ Button: `bg-blue-600` → `bg-primary-600` (semantic token)
+- ✅ Button hover: `bg-blue-700` → `bg-primary-700`
+- ✅ Transition: added `duration-150` (fast, from general-styling)
+- ✅ All spacing unchanged (already proper 4px scale)
+- ✅ Shadow unchanged (already subtle `shadow-sm`)
 
 **Preserved (logic):**
 - ✅ `useState`, `useEffect` unchanged
@@ -594,26 +668,69 @@ export function Dashboard() {
 - ✅ `data.map()` unchanged
 - ✅ All props and event handlers unchanged
 
-## Checklist: Theme Redesign
+### ❌ ANTI-PATTERN: SMK 2016 Redesign (DON'T DO THIS)
+
+```tsx
+// ❌ BAD: Melanggar general-styling dengan gradient norak, shadow berlebihan
+export function Dashboard() {
+  // ... logic sama ...
+  
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-purple-400 via-pink-500 to-red-500">
+      <header className="bg-white/50 backdrop-blur-xl border-b-4 border-purple-500 shadow-[0_10px_30px_rgba(0,0,0,0.3),0_20px_60px_rgba(0,0,0,0.2)]">
+        <div className="max-w-7xl mx-auto px-6 py-5 flex items-center justify-between">
+          <h1 className="text-4xl font-black bg-gradient-to-r from-purple-600 via-pink-600 to-red-600 bg-clip-text text-transparent drop-shadow-2xl">
+            Dashboard
+          </h1>
+          <button 
+            className="px-8 py-4 bg-gradient-to-r from-purple-600 via-pink-600 to-red-600 text-white rounded-[50px] hover:scale-110 hover:rotate-3 transition-all duration-700 shadow-[0_20px_60px_rgba(147,51,234,0.5)]"
+            onClick={handleNewItem}
+          >
+            ✨ New Item ✨
+          </button>
+        </div>
+      </header>
+      {/* ... */}
+    </div>
+  );
+}
+
+// Masalah:
+// ❌ Gradient background 3-color — norak, melanggar general-styling
+// ❌ Shadow 2-layer heavy + blur-xl — berlebihan
+// ❌ Border 4px — terlalu tebal
+// ❌ Gradient text — tidak perlu, sulit dibaca
+// ❌ Button rounded-[50px] — pill shape tanpa alasan
+// ❌ hover:scale-110 hover:rotate-3 — transform berlebihan
+// ❌ duration-700 — transition lambat (> 300ms)
+// ❌ Shadow custom 3-layer — melanggar general-styling max 2 layer
+// ❌ Emoji dalam button text — unprofessional
+```
+
+## Checklist: Theme Redesign (Follow general-styling)
 
 ### Before Starting:
 - [ ] Backup current code (git commit)
 - [ ] Document current theme (colors, spacing, fonts)
 - [ ] Identify all theme locations (config, CSS, components)
+- [ ] **Review `general-styling` rules** — new theme MUST follow professional standards
 
 ### During Redesign:
+- [ ] **Follow general-styling**: design tokens, spacing 4px scale, shadow max 2 layer, no gradient norak
 - [ ] Update theme config (Tailwind/CSS vars/MUI theme)
 - [ ] Test each component visually
 - [ ] Verify NO logic changes (event handlers work)
-- [ ] Check accessibility (contrast ratios)
+- [ ] Check accessibility (contrast ratios WCAG AA minimum 4.5:1)
 - [ ] Test dark mode (if applicable)
 - [ ] Test responsive breakpoints
+- [ ] **Verify no SMK 2016 vibes**: no arbitrary spacing, no 3+ layer shadow, no transform berlebihan
 
 ### After Redesign:
 - [ ] Run app, click through all pages
 - [ ] Verify all interactions still work
 - [ ] Check for visual inconsistencies
 - [ ] Test on mobile devices
+- [ ] **Audit against general-styling**: spacing scale OK? colors semantic? shadow ≤ 2 layer? transition < 300ms?
 - [ ] Get design approval
 
 ## Common Pitfalls to Avoid
@@ -683,15 +800,21 @@ export function Dashboard() {
 ## Key Rules
 
 ### DO:
+- ✅ **Follow general-styling principles** — design tokens, spacing system, professional styling
 - ✅ Update theme config first (central source of truth)
 - ✅ Use design tokens (not hardcoded colors)
 - ✅ Preserve all event handlers and logic
-- ✅ Test accessibility (contrast, focus states)
+- ✅ Test accessibility (contrast WCAG AA minimum 4.5:1)
 - ✅ Maintain responsive behavior
 - ✅ Update dark mode consistently
 - ✅ Document theme changes
+- ✅ Shadow max 2 layer (sm, md, lg only)
+- ✅ Spacing dari scale (no arbitrary `p-[17px]`)
+- ✅ Transition fast (150-300ms)
+- ✅ Gradient hanya kalau ada design reason (solid default)
 
 ### DON'T:
+- ❌ **Melanggar general-styling** — no gradient norak, no shadow 3+ layer, no spacing random, no transform berlebihan
 - ❌ Touch business logic or state management
 - ❌ Modify event handlers (onClick, onChange, etc.)
 - ❌ Change component props (except style-related)
@@ -699,16 +822,28 @@ export function Dashboard() {
 - ❌ Break accessibility (low contrast)
 - ❌ Forget to test dark mode
 - ❌ Make inconsistent changes
+- ❌ Create SMK 2016 vibes (lihat general-styling untuk detail)
+- ❌ Arbitrary values everywhere (`bg-[#3498db]`, `p-[23px]`)
+- ❌ Animation lambat (> 300ms)
 
 ## Summary
 
-Theme redesign = **visual updates only, logic preserved**:
+Theme redesign = **visual updates only, logic preserved, follow general-styling**:
 
-1. **Analyze current theme** (extract design tokens)
-2. **Design new theme** (colors, spacing, typography)
-3. **Update theme config** (Tailwind/CSS vars/MUI)
-4. **Update components** (visual classes only)
-5. **Test thoroughly** (visuals + interactions)
-6. **Verify logic intact** (all features still work)
+1. **Follow general-styling** — new theme MUST adhere to professional standards (no SMK 2016 vibes)
+2. **Analyze current theme** (extract design tokens)
+3. **Design new theme** (colors, spacing, typography — ikuti general-styling rules)
+4. **Update theme config** (Tailwind/CSS vars/MUI)
+5. **Update components** (visual classes only, preserve logic)
+6. **Test thoroughly** (visuals + interactions + general-styling compliance)
+7. **Verify logic intact** (all features still work)
 
-**Result**: Fresh new look without breaking the app!
+**Critical rules from general-styling**:
+- Design tokens: semantic colors + numbered scale, spacing kelipatan 4px
+- Shadow: max 2 layer (sm, md, lg only)
+- Gradient: solid default, gradient hanya kalau ada design reason
+- Animation: 150-300ms, purposeful
+- Contrast: WCAG AA minimum (4.5:1)
+- No arbitrary values: `bg-[#3498db]`, `p-[17px]`, `shadow-[custom-3-layer]`
+
+**Result**: Fresh new look yang **professional** (bukan SMK 2016) tanpa breaking the app!

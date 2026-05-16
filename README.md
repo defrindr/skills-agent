@@ -21,10 +21,10 @@ skills/
 ├── install.sh               # One-command installer
 ├── AGENTS.md                # Repository guidelines
 └── skills-agent/            # MCP server package
-    ├── skills/              # 15 skills (Bahasa Indonesia)
+    ├── skills/              # 20 skills (Bahasa Indonesia)
     │   ├── backend/        # Express, FastAPI, Go, Laravel, NestJS
     │   ├── common/         # Core: explorer, architect, initializer, etc.
-    │   ├── frontend/       # Next.js, React, Vue/Nuxt/Svelte
+    │   ├── frontend/       # General-styling, Next.js, React, Vue/Nuxt/Svelte, Tailwind, Theme-redesign
     │   └── mobile/         # Flutter, React Native
     ├── src/                # MCP server source
     └── dist/               # Compiled
@@ -32,7 +32,7 @@ skills/
 
 ---
 
-## 📚 Skills (19 total)
+## 📚 Skills (20 total)
 
 All skills written in **Bahasa Indonesia**:
 
@@ -40,7 +40,7 @@ All skills written in **Bahasa Indonesia**:
 
 **Backend (5)** - expressjs, fastapi, golang, laravel, nestjs readability
 
-**Frontend (5)** - nextjs, react, tailwind, theme-redesign, vue/nuxt/svelte readability
+**Frontend (6)** - general-styling, nextjs, react, tailwind, theme-redesign, vue/nuxt/svelte readability
 
 **Mobile (2)** - flutter, react-native readability
 

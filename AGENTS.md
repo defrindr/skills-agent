@@ -16,6 +16,7 @@ This workspace is a collection of **AI agent skills** — reusable, on-demand wo
 | Backend | `backend/golang-readability/` | Go (Gin / Fiber / Echo) readability rules |
 | Backend | `backend/laravel-readability/` | Laravel-specific readability rules |
 | Backend | `backend/nestjs-readability/` | NestJS-specific readability rules |
+| Frontend | `frontend/general-styling/` | Professional styling guide — design tokens, spacing, colors, typography (NOT SMK 2016 vibes) |
 | Frontend | `frontend/nextjs-readability/` | Next.js readability rules |
 | Frontend | `frontend/react-readability/` | React + Vite readability rules |
 | Frontend | `frontend/vue-nuxt-svelte-readability/` | Vue / Nuxt / Svelte readability rules |

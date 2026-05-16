@@ -28,16 +28,28 @@ complexity: simple
 
 Goal: Write maintainable Tailwind CSS dengan clear patterns, minimal duplication, dan readable class names.
 
+> **PENTING**: Untuk design tokens, spacing system, color system, typography scale, shadow/radius levels, dan **professional styling principles** — ikuti `frontend/general-styling`.
+> Skill ini hanya mencakup hal yang spesifik untuk **Tailwind CSS utility patterns, component extraction, dan configuration**.
+> 
+> **Jangan asal comot Tailwind default**: Warna dari design tokens (bukan arbitrary `bg-[#3498db]`), spacing dari scale (bukan `p-[17px]`), shadow maksimal 2 layer.
+> 
+> **General-styling adalah authority** untuk:
+> - Design tokens (colors, spacing, typography, shadows, radius)
+> - Anti-pattern styling (gradient norak, shadow berlebihan, animation lambat)
+> - Component visual standards (button, card, input harus professional)
+> - Contrast, readability, accessibility rules
+
 ## Prinsip Utama
 
-**UTILITY-FIRST, COMPONENT-EXTRACTED!**
+**UTILITY-FIRST, COMPONENT-EXTRACTED, DESIGN-SYSTEM-BASED!**
 
-1. **Start with utilities** - Build with Tailwind classes first
-2. **Extract components** - When patterns repeat 3+ times
-3. **Order matters** - Consistent class ordering
-4. **Responsive mobile-first** - `sm:`, `md:`, `lg:` progression
-5. **Dark mode** - Use `dark:` prefix
-6. **Custom utilities** - For project-specific patterns
+1. **Design tokens first** - Extend `tailwind.config.js` dengan tokens dari `general-styling`, bukan arbitrary value
+2. **Start with utilities** - Build dengan Tailwind classes yang konsisten dengan design system
+3. **Extract components** - When patterns repeat 3+ times
+4. **Order matters** - Consistent class ordering
+5. **Responsive mobile-first** - `sm:`, `md:`, `lg:` progression
+6. **Dark mode** - Use `dark:` prefix
+7. **Follow general-styling** - No SMK 2016 vibes: no gradient norak, no shadow berlebihan, no spacing random
 
 ## Class Ordering Convention
 
@@ -308,38 +320,88 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
 ## Custom Configuration
 
-### Extend Theme
+### Extend Theme dengan Design Tokens (WAJIB)
+
+**Aturan**: Jangan pakai Tailwind default begitu saja — extend dengan design tokens dari `general-styling`.
 
 **tailwind.config.js:**
 ```js
 module.exports = {
   theme: {
     extend: {
+      // Colors: Ikuti general-styling palette
       colors: {
-        brand: {
-          50: '#f0f9ff',
-          100: '#e0f2fe',
-          // ... other shades
-          900: '#0c4a6e',
+        primary: {
+          DEFAULT: '#2563eb',  // blue-600
+          hover: '#1d4ed8',     // blue-700
+        },
+        danger: {
+          DEFAULT: '#dc2626',   // red-600
+          hover: '#b91c1c',     // red-700
+        },
+        // Gray scale dari general-styling
+        gray: {
+          50: '#f9fafb',
+          100: '#f3f4f6',
+          200: '#e5e7eb',
+          300: '#d1d5db',
+          // ... sesuai general-styling tokens
         },
       },
+      
+      // Spacing: Tailwind default sudah 4px base — OK, tapi extend kalau perlu
       spacing: {
-        '128': '32rem',
-        '144': '36rem',
+        // Default: 1 = 0.25rem (4px), 2 = 0.5rem (8px), dst.
+        // Extend hanya kalau butuh custom
       },
+      
+      // Typography: Extend kalau butuh custom scale
+      fontSize: {
+        // Default Tailwind sudah bagus (sm, base, lg, xl, 2xl, dst)
+        // Extend hanya kalau project butuh custom
+      },
+      
+      // Shadow: Ikuti general-styling (max 2 layer)
+      boxShadow: {
+        'sm': '0 1px 2px 0 rgba(0,0,0,0.05)',
+        'md': '0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06)',
+        'lg': '0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05)',
+        // JANGAN tambah 'xl', '2xl' dengan 3-5 layer — ikuti general-styling max 2 layer
+      },
+      
+      // Radius: Tailwind default OK
       borderRadius: {
-        '4xl': '2rem',
+        // sm: 0.25rem (4px), md: 0.375rem (6px), lg: 0.5rem (8px)
+        // Extend hanya kalau butuh custom
       },
     },
   },
+  
+  // Dark mode
+  darkMode: 'class', // or 'media'
 }
 ```
 
-**Usage:**
-```tsx
-<div className="bg-brand-500 text-brand-50 rounded-4xl">
-  Custom colors!
-</div>
+**Anti-pattern**:
+```js
+// ❌ Jangan extend dengan warna SMK random
+colors: {
+  'sky-blue': '#3498db',      // random hex
+  'emerald': '#2ecc71',       // tidak ada scale
+  'alizarin': '#e74c3c',      // nama aneh
+}
+
+// ✅ Extend dengan semantic + scale
+colors: {
+  primary: {
+    DEFAULT: '#2563eb',
+    hover: '#1d4ed8',
+  },
+  success: {
+    DEFAULT: '#16a34a',  // green-600
+    hover: '#15803d',    // green-700
+  },
+}
 ```
 
 ### Custom Utilities
@@ -460,15 +522,35 @@ export function Input({ error, ...props }: InputProps) {
 
 ## Anti-Patterns to Avoid
 
-### ❌ 1. Arbitrary Values Everywhere
+### ❌ 1. Arbitrary Values Everywhere (MELANGGAR general-styling)
 
 ```tsx
-// ❌ Bad: Inconsistent spacing
+// ❌ Bad: Spacing random — melanggar general-styling spacing system
 <div className="mt-[13px] ml-[27px] p-[15px]">
 
-// ✅ Good: Use design system scale
-<div className="mt-3 ml-6 p-4">
+// ✅ Good: Pakai design system scale (kelipatan 4px)
+<div className="mt-3 ml-6 p-4">  // 12px, 24px, 16px
+
+// ❌ Bad: Warna arbitrary tanpa system
+<div className="bg-[#3498db] text-[#2ecc71]">
+
+// ✅ Good: Semantic colors dari config
+<div className="bg-primary text-success">
+
+// ❌ Bad: Shadow custom berlebihan — melanggar general-styling (max 2 layer)
+<div className="shadow-[0_10px_30px_rgba(0,0,0,0.3),0_20px_50px_rgba(0,0,0,0.2)]">
+
+// ✅ Good: Shadow dari design system
+<div className="shadow-md">  // 2 layer max dari general-styling
 ```
+
+**Kapan arbitrary value OK?**
+- Dynamic value yang benar-benar tidak bisa dari scale (e.g., width dari API response)
+- One-off case yang sangat spesifik (tapi tetap harus justify)
+
+**Kapan arbitrary value TIDAK OK?**
+- Spacing, colors, shadows, font-size yang bisa dari design system
+- Pattern yang repeat (harus extract ke config)
 
 ### ❌ 2. Inline Styles for Tailwind-Available Values
 
@@ -519,18 +601,49 @@ export function Card({ children }: { children: React.ReactNode }) {
 <Button variant="primary" />
 ```
 
-### ❌ 5. Not Using Custom Colors
+### ❌ 5. Melanggar General-Styling Principles
 
 ```tsx
-// ❌ Bad: Hardcoded colors
-<div className="bg-[#3B82F6] text-[#FFFFFF]">
+// ❌ Bad: Gradient norak tanpa tujuan (melanggar general-styling)
+<button className="bg-gradient-to-r from-purple-600 via-pink-600 to-red-600">
 
-// ✅ Good: Named colors
-<div className="bg-blue-600 text-white">
+// ✅ Good: Solid color dulu — gradient hanya kalau ada alasan design
+<button className="bg-primary hover:bg-primary-hover">
 
-// ✅ Better: Brand colors
-<div className="bg-brand-primary text-white">
+// ❌ Bad: Shadow 3+ layer berlebihan (melanggar general-styling)
+<div className="shadow-2xl hover:shadow-[0_30px_60px_rgba(0,0,0,0.5)]">
+
+// ✅ Good: Shadow subtle max 2 layer
+<div className="shadow-sm hover:shadow-md">
+
+// ❌ Bad: Transform berlebihan (melanggar general-styling)
+<button className="hover:scale-125 hover:rotate-6 transition-all duration-500">
+
+// ✅ Good: Subtle transform, fast transition
+<button className="hover:scale-[1.02] active:scale-[0.98] transition-transform duration-150">
+
+// ❌ Bad: Border radius terlalu besar tanpa alasan
+<button className="rounded-[50px]">  // pill shape tanpa alasan
+
+// ✅ Good: Radius dari design system
+<button className="rounded-lg">  // 8px — professional
+
+// ❌ Bad: Animation lambat (> 300ms)
+<div className="transition-all duration-700">
+
+// ✅ Good: Animation cepat (150-300ms)
+<div className="transition-colors duration-150">
 ```
+
+**Checklist sebelum commit (dari general-styling)**:
+- [ ] Tidak ada arbitrary color value — semua dari config
+- [ ] Spacing pakai scale — tidak ada `p-[17px]`, `mt-[23px]`
+- [ ] Shadow maksimal 2 layer — `shadow-sm`, `shadow-md`, atau `shadow-lg`
+- [ ] Gradient hanya kalau perlu — solid color default
+- [ ] Transition < 300ms — `duration-150` atau `duration-200`
+- [ ] Transform subtle — tidak ada `scale-125` atau `rotate-12`
+- [ ] Border radius reasonable — tidak ada `rounded-[50px]` untuk button
+- [ ] Text contrast pass WCAG AA — cek dengan DevTools
 
 ## Class Organization Tips
 
@@ -744,33 +857,43 @@ export function Card({ title, description, actions }: CardProps) {
 ## Key Rules
 
 ### DO:
-- ✅ Order classes consistently
-- ✅ Extract repeated patterns into components
-- ✅ Use mobile-first responsive design
+- ✅ **Ikuti general-styling** — design tokens, spacing system, no SMK vibes
+- ✅ Extend `tailwind.config.js` dengan semantic colors dari design system
+- ✅ Order classes consistently (layout → spacing → colors → effects → responsive → dark)
+- ✅ Extract repeated patterns into components (3+ kali → component)
+- ✅ Use mobile-first responsive design (`sm:`, `md:`, `lg:`)
 - ✅ Implement dark mode with `dark:` prefix
-- ✅ Use design system colors (not arbitrary)
-- ✅ Multi-line classes for readability
+- ✅ Multi-line classes for readability (complex component)
 - ✅ Use `clsx` for conditional classes
-- ✅ Configure Prettier plugin
+- ✅ Configure Prettier plugin (auto-sort classes)
+- ✅ Shadow max 2 layer (`shadow-sm`, `shadow-md`)
+- ✅ Transition fast (150-300ms: `duration-150`, `duration-200`)
 
 ### DON'T:
-- ❌ Overuse `@apply`
-- ❌ Use arbitrary values everywhere
+- ❌ **Melanggar general-styling** — no gradient norak, no shadow 3+ layer, no spacing random
+- ❌ Arbitrary values everywhere (`bg-[#3498db]`, `p-[17px]`, `mt-[23px]`)
+- ❌ Overuse `@apply` (component extraction lebih baik)
 - ❌ Mix inline styles with Tailwind
-- ❌ Create overly long class strings
-- ❌ Use dynamic class names
-- ❌ Duplicate complex patterns
-- ❌ Skip component extraction
+- ❌ Create overly long class strings (extract ke component)
+- ❌ Use dynamic class names (`bg-${color}-600` won't work)
+- ❌ Duplicate complex patterns (extract!)
+- ❌ Skip component extraction when pattern repeats
+- ❌ Animation lambat (> 300ms)
+- ❌ Transform berlebihan (`scale-125`, `rotate-12`)
 
 ## Summary
 
-Tailwind readability = **utility-first with component extraction**:
+Tailwind readability = **utility-first with component extraction + design system adherence**:
 
-1. **Start with utilities** - Build quickly with Tailwind classes
-2. **Order consistently** - Layout → spacing → colors → effects → responsive → dark
-3. **Extract components** - When patterns repeat 3+ times
-4. **Responsive mobile-first** - `sm:`, `md:`, `lg:` breakpoints
-5. **Dark mode** - Use `dark:` prefix consistently
-6. **Custom config** - Extend theme for project needs
+1. **Follow general-styling** - Design tokens, spacing system, no SMK 2016 vibes
+2. **Extend config first** - Semantic colors, not arbitrary values
+3. **Start with utilities** - Build quickly with Tailwind classes
+4. **Order consistently** - Layout → spacing → colors → effects → responsive → dark
+5. **Extract components** - When patterns repeat 3+ times
+6. **Responsive mobile-first** - `sm:`, `md:`, `lg:` breakpoints
+7. **Dark mode** - Use `dark:` prefix consistently
+8. **Professional styling** - Shadow max 2 layer, transition 150-300ms, no gradient norak
 
-**Result**: Maintainable, readable Tailwind code that scales with your project.
+**Critical**: Tailwind adalah **tool untuk implement design system**, bukan excuse untuk arbitrary value sembarangan. Kalau `general-styling` bilang spacing kelipatan 4px, jangan pakai `p-[17px]`. Kalau `general-styling` bilang shadow max 2 layer, jangan pakai `shadow-2xl` dengan 5 layer.
+
+**Result**: Maintainable, readable, dan **professional** Tailwind code yang konsisten dengan design system.
