@@ -1,162 +1,180 @@
 #!/bin/bash
 
 # Skills Agent Uninstaller
-# Usage: bash ~/.skills-agent/skills-agent/uninstall.sh
-# Or from repo: bash skills-agent/uninstall.sh
+# Removes all components of Skills Agent installation
 
 set -e
 
 INSTALL_DIR="$HOME/.skills-agent"
 SKILLS_DIR="$HOME/.agents/skills"
 OPENCODE_CONFIG="$HOME/.config/opencode/opencode.json"
-
 BOLD="\033[1m"
+RED="\033[31m"
+YELLOW="\033[33m"
 GREEN="\033[32m"
 BLUE="\033[34m"
-YELLOW="\033[33m"
-RED="\033[31m"
 RESET="\033[0m"
 
-echo -e "${BOLD}${RED}🗑️  Skills Agent Uninstaller${RESET}\n"
-
-# Confirm uninstall
-echo -e "${YELLOW}This will remove:${RESET}"
-echo "  - Installation directory: $INSTALL_DIR"
-echo "  - Skill symlinks: $SKILLS_DIR/*-readability, etc."
-echo "  - OpenCode MCP configuration for skills-agent"
-echo ""
-read -p "Continue? [y/N] " -n 1 -r
+echo -e "${BOLD}${RED}"
+echo "╔════════════════════════════════════════╗"
+echo "║     Skills Agent Uninstaller          ║"
+echo "╚════════════════════════════════════════╝"
+echo -e "${RESET}"
 echo ""
 
-if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-  echo -e "${BLUE}Uninstall cancelled.${RESET}"
+# Check if installed
+if [ ! -d "$INSTALL_DIR" ]; then
+  echo -e "${YELLOW}⚠  Skills Agent is not installed${RESET}"
+  echo ""
+  echo "Installation directory not found: $INSTALL_DIR"
   exit 0
 fi
 
+# Show what will be removed
+echo -e "${BOLD}The following will be removed:${RESET}"
+echo ""
+echo "  ❌ Installation: $INSTALL_DIR"
+echo "  ❌ Skill symlinks: $SKILLS_DIR/{common,backend,frontend,mobile}"
+echo "  ❌ OpenCode config: $OPENCODE_CONFIG (skills-agent entry)"
 echo ""
 
-# 1. Remove installation directory
-if [ -d "$INSTALL_DIR" ]; then
-  echo -e "${BLUE}📦 Removing installation directory...${RESET}"
-  rm -rf "$INSTALL_DIR"
-  echo -e "${GREEN}✅ Removed $INSTALL_DIR${RESET}"
-else
-  echo -e "${YELLOW}⚠️  Installation directory not found (already removed?)${RESET}"
+# Confirmation
+read -p "$(echo -e ${YELLOW}Proceed with uninstallation? \(y/N\): ${RESET})" -n 1 -r
+echo ""
+echo ""
+
+if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+  echo -e "${BLUE}Uninstallation cancelled${RESET}"
+  exit 0
 fi
 
-# 2. Remove skill symlinks
-if [ -d "$SKILLS_DIR" ]; then
-  echo -e "${BLUE}🔗 Removing skill symlinks...${RESET}"
+# Remove installation directory
+echo -e "${BLUE}Removing installation directory...${RESET}"
+rm -rf "$INSTALL_DIR"
+echo -e "${GREEN}✓ Removed: $INSTALL_DIR${RESET}"
+echo ""
+
+# Remove skill symlinks
+echo -e "${BLUE}Removing skill symlinks...${RESET}"
+
+SKILLS=(
+  # Common
+  "common/codebase-explorer"
+  "common/code-health"
+  "common/database-designer"
+  "common/database-optimizer"
+  "common/feature-architect"
+  "common/project-initializer"
+  "common/project-readability"
+  "common/token-efficient-coding"
   
-  # List of skills to remove (all 21 skills)
-  SKILLS=(
-    # Common (8)
-    "codebase-explorer"
-    "code-health"
-    "database-designer"
-    "database-optimizer"
-    "feature-architect"
-    "project-initializer"
-    "project-readability"
-    "token-efficient-coding"
-    # Backend (5)
-    "expressjs-readability"
-    "fastapi-readability"
-    "golang-readability"
-    "laravel-readability"
-    "nestjs-readability"
-    # Frontend (6)
-    "general-styling"
-    "nextjs-readability"
-    "react-readability"
-    "tailwind-readability"
-    "theme-redesign"
-    "vue-nuxt-svelte-readability"
-    # Mobile (2)
-    "flutter-readability"
-    "react-native-readability"
-  )
+  # Backend
+  "backend/expressjs-readability"
+  "backend/fastapi-readability"
+  "backend/golang-readability"
+  "backend/laravel-readability"
+  "backend/nestjs-readability"
   
-  REMOVED_COUNT=0
-  for skill in "${SKILLS[@]}"; do
-    if [ -L "$SKILLS_DIR/$skill" ] || [ -d "$SKILLS_DIR/$skill" ]; then
-      rm -rf "$SKILLS_DIR/$skill"
-      ((REMOVED_COUNT++))
-    fi
-  done
+  # Frontend
+  "frontend/general-styling"
+  "frontend/nextjs-readability"
+  "frontend/react-readability"
+  "frontend/tailwind-readability"
+  "frontend/theme-redesign"
+  "frontend/vue-nuxt-svelte-readability"
   
-  if [ $REMOVED_COUNT -gt 0 ]; then
-    echo -e "${GREEN}✅ Removed $REMOVED_COUNT skill symlinks${RESET}"
-  else
-    echo -e "${YELLOW}⚠️  No skill symlinks found (already removed?)${RESET}"
+  # Mobile
+  "mobile/flutter-readability"
+  "mobile/react-native-readability"
+)
+
+REMOVED_COUNT=0
+for skill in "${SKILLS[@]}"; do
+  SKILL_PATH="$SKILLS_DIR/$skill"
+  if [ -L "$SKILL_PATH" ]; then
+    rm "$SKILL_PATH"
+    REMOVED_COUNT=$((REMOVED_COUNT + 1))
   fi
-else
-  echo -e "${YELLOW}⚠️  Skills directory not found${RESET}"
-fi
+done
 
-# 3. Remove OpenCode MCP configuration
+echo -e "${GREEN}✓ Removed $REMOVED_COUNT skill symlinks${RESET}"
+echo ""
+
+# Remove empty category directories
+for category in common backend frontend mobile; do
+  if [ -d "$SKILLS_DIR/$category" ] && [ -z "$(ls -A $SKILLS_DIR/$category)" ]; then
+    rmdir "$SKILLS_DIR/$category"
+  fi
+done
+
+# Remove OpenCode MCP config entry
 if [ -f "$OPENCODE_CONFIG" ]; then
-  echo -e "${BLUE}⚙️  Removing OpenCode MCP configuration...${RESET}"
+  echo -e "${BLUE}Removing OpenCode MCP configuration...${RESET}"
   
-  # Check if jq is available for clean JSON manipulation
-  if command -v jq >/dev/null 2>&1; then
-    # Use jq to remove skills-agent server
-    TEMP_CONFIG=$(mktemp)
-    jq 'del(.mcpServers["skills-agent"])' "$OPENCODE_CONFIG" > "$TEMP_CONFIG"
-    mv "$TEMP_CONFIG" "$OPENCODE_CONFIG"
-    echo -e "${GREEN}✅ Removed skills-agent from OpenCode MCP config${RESET}"
+  # Create backup
+  cp "$OPENCODE_CONFIG" "$OPENCODE_CONFIG.backup"
+  
+  # Remove skills-agent entry (simple approach: remove line containing skills-agent)
+  # Note: This assumes the config follows standard JSON formatting
+  if command -v node >/dev/null 2>&1; then
+    # Use Node.js to properly edit JSON
+    node -e "
+      const fs = require('fs');
+      const config = JSON.parse(fs.readFileSync('$OPENCODE_CONFIG', 'utf8'));
+      if (config.mcp?.servers?.['skills-agent']) {
+        delete config.mcp.servers['skills-agent'];
+        fs.writeFileSync('$OPENCODE_CONFIG', JSON.stringify(config, null, 2));
+        console.log('✓ Removed skills-agent from OpenCode config');
+      }
+    " 2>/dev/null || echo -e "${YELLOW}⚠  Could not automatically remove OpenCode config. Please edit manually: $OPENCODE_CONFIG${RESET}"
   else
-    # Fallback: Manual instruction
-    echo -e "${YELLOW}⚠️  jq not installed. Manual cleanup required:${RESET}"
-    echo ""
-    echo "   Edit: $OPENCODE_CONFIG"
-    echo "   Remove the \"skills-agent\" entry from \"mcpServers\""
-    echo ""
+    echo -e "${YELLOW}⚠  Node.js not found. Please manually remove 'skills-agent' entry from: $OPENCODE_CONFIG${RESET}"
   fi
-else
-  echo -e "${YELLOW}⚠️  OpenCode config not found${RESET}"
+  
+  echo -e "${GREEN}✓ OpenCode config updated${RESET}"
+  echo -e "${BLUE}   Backup saved: $OPENCODE_CONFIG.backup${RESET}"
+  echo ""
 fi
 
-# 4. Remove from PATH (if added)
-echo -e "${BLUE}🔍 Checking PATH configuration...${RESET}"
-
-# Detect shell
-if [ -n "$ZSH_VERSION" ]; then
-  SHELL_RC="$HOME/.zshrc"
-elif [ -n "$BASH_VERSION" ]; then
-  SHELL_RC="$HOME/.bashrc"
-else
-  SHELL_RC="$HOME/.profile"
-fi
-
-if [ -f "$SHELL_RC" ]; then
-  if grep -q "\.skills-agent" "$SHELL_RC"; then
-    echo -e "${YELLOW}⚠️  Found skills-agent in $SHELL_RC${RESET}"
-    echo ""
-    echo "   Please manually remove this line:"
-    echo "   ${BOLD}export PATH=\"\$PATH:$INSTALL_DIR/skills-agent/dist\"${RESET}"
-    echo ""
-    echo "   Then run: ${BOLD}source $SHELL_RC${RESET}"
-    echo ""
+# Check PATH
+echo -e "${BLUE}Checking PATH entries...${RESET}"
+if echo "$PATH" | grep -q ".skills-agent"; then
+  echo -e "${YELLOW}⚠  Found .skills-agent in PATH${RESET}"
+  echo ""
+  echo "You may want to remove this from your shell config:"
+  
+  if [ -n "$ZSH_VERSION" ]; then
+    SHELL_RC="$HOME/.zshrc"
+  elif [ -n "$BASH_VERSION" ]; then
+    SHELL_RC="$HOME/.bashrc"
   else
-    echo -e "${GREEN}✅ No PATH configuration found${RESET}"
+    SHELL_RC="$HOME/.profile"
   fi
+  
+  echo "  File: $SHELL_RC"
+  echo "  Look for lines containing: .skills-agent"
+  echo ""
+else
+  echo -e "${GREEN}✓ No PATH entries found${RESET}"
+  echo ""
 fi
 
-# 5. Summary
+# Success
+echo -e "${GREEN}${BOLD}"
+echo "╔════════════════════════════════════════╗"
+echo "║     Uninstallation Complete! ✓        ║"
+echo "╚════════════════════════════════════════╝"
+echo -e "${RESET}"
 echo ""
-echo -e "${GREEN}${BOLD}✨ Uninstall complete!${RESET}\n"
-echo -e "${BLUE}What was removed:${RESET}"
-echo "  ✅ Installation directory ($INSTALL_DIR)"
-echo "  ✅ Skill symlinks (21 skills)"
-echo "  ✅ OpenCode MCP configuration"
+
+echo -e "${BOLD}Next steps:${RESET}"
+echo "  1. Restart OpenCode (Cmd+Q / Ctrl+Q and reopen)"
+echo -e "  2. Verify removal: ${BLUE}opencode mcp list${RESET}"
+echo "     skills-agent should NOT appear"
 echo ""
-echo -e "${YELLOW}${BOLD}Next steps:${RESET}"
-echo "  1. Restart OpenCode (Quit + reopen)"
-echo "  2. Verify: ${BOLD}opencode mcp list${RESET} (skills-agent should be gone)"
-echo "  3. Optional: Remove PATH entry from $SHELL_RC (if added)"
+
+echo -e "${YELLOW}To reinstall:${RESET}"
+echo -e "  ${BLUE}bash <(curl -fsSL https://raw.githubusercontent.com/defrindr/skills-agent-installer/main/install.sh)${RESET}"
 echo ""
-echo -e "${BLUE}To reinstall:${RESET}"
-echo "  ${BOLD}curl -fsSL https://raw.githubusercontent.com/defrindr/skills-agent/main/install.sh | bash${RESET}"
-echo "  ${YELLOW}(Note: Requires public repo or git clone manually)${RESET}"
-echo ""
+
+echo -e "${GREEN}Thank you for using Skills Agent! 👋${RESET}"
