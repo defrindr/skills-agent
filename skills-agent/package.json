@@ -1,0 +1,46 @@
+{
+  "name": "@defrindr/skills-agent",
+  "version": "0.1.0",
+  "description": "Multi-provider AI agent skills system with MCP integration for OpenCode",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "bin": {
+    "skills-agent": "dist/cli.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "start": "node dist/index.js",
+    "mcp": "node dist/index.js",
+    "test": "echo \"Tests coming soon\""
+  },
+  "keywords": [
+    "mcp",
+    "ai-agent",
+    "skills",
+    "opencode",
+    "copilot",
+    "multi-provider",
+    "llm"
+  ],
+  "author": "defrindr",
+  "license": "MIT",
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.24.0",
+    "@modelcontextprotocol/sdk": "^0.5.0",
+    "axios": "^1.6.0",
+    "dotenv": "^16.4.0",
+    "glob": "^10.3.0",
+    "gray-matter": "^4.0.3",
+    "openai": "^4.28.0",
+    "yaml": "^2.3.4"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "typescript": "^5.3.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
