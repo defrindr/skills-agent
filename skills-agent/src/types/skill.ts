@@ -7,6 +7,7 @@ export interface Skill {
   description: string;
   content: string;
   metadata: SkillMetadata;
+  filePath?: string; // Path to SKILL.md file for cache invalidation
 }
 
 export interface SkillMetadata {

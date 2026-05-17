@@ -28,7 +28,8 @@ export class SkillParser {
         name: data.name,
         description: data.description || '',
         content: markdown.trim(),
-        metadata: this.parseMetadata(data)
+        metadata: this.parseMetadata(data),
+        filePath: filePath // Store file path for cache invalidation
       };
 
       logger.debug(`Parsed skill: ${skill.name}`);

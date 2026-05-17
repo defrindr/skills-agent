@@ -59,4 +59,14 @@ export interface ExecutionResult {
   error?: Error;
   attempts: number;
   providers_tried: string[];
+  metadata?: {
+    attempts?: Array<{
+      provider: string;
+      error?: string;
+      latency: number;
+      timestamp: number;
+    }>;
+    total_latency?: number;
+    fatal?: boolean;
+  };
 }

@@ -5,6 +5,8 @@
 import fs from 'fs';
 import path from 'path';
 import { Framework } from '../types/skill.js';
+import { frameworkCache, getFileHash } from './cache.js';
+import { logger } from './logger.js';
 
 const FRAMEWORK_PATTERNS: Record<string, {
   files: string[];
@@ -152,6 +154,30 @@ export class FrameworkDetector {
 }
 
 export async function detectFramework(projectPath: string): Promise<Framework | null> {
+  // Generate cache key from project path + package.json hash (if exists)
+  const packageJsonPath = path.join(projectPath, 'package.json');
+  let cacheKey = `framework:${projectPath}`;
+  
+  if (fs.existsSync(packageJsonPath)) {
+    const pkgHash = getFileHash(packageJsonPath);
+    cacheKey = `framework:${projectPath}:${pkgHash}`;
+  }
+
+  // Try cache first
+  const cached = frameworkCache.get(cacheKey);
+  if (cached !== undefined) { // Allow null to be cached
+    logger.debug(`Cache HIT: framework detection for ${projectPath} (result: ${cached?.name || 'none'})`);
+    return cached;
+  }
+
+  // Cache miss - detect
+  logger.debug(`Cache MISS: framework detection for ${projectPath}`);
   const detector = new FrameworkDetector(projectPath);
-  return detector.detect();
+  const result = await detector.detect();
+  
+  // Cache for 5 minutes
+  frameworkCache.set(cacheKey, result, 300000);
+  logger.debug(`Cached framework detection result: ${result?.name || 'none'}`);
+  
+  return result;
 }

@@ -8,6 +8,7 @@ import { homedir } from 'os';
 import { glob } from 'glob';
 import { Skill } from '../types/skill.js';
 import { skillParser } from './parser.js';
+import { skillCache, getFileHash } from '../utils/cache.js';
 import { logger } from '../utils/logger.js';
 
 const DEFAULT_SKILLS_DIR = path.join(process.cwd(), 'skills', 'common');
@@ -87,7 +88,24 @@ export class SkillManager {
   }
 
   getSkill(name: string): Skill | undefined {
-    return this.skills.get(name);
+    // Try cache first
+    const cacheKey = `skill:${name}`;
+    const cached = skillCache.get(cacheKey);
+    if (cached) {
+      logger.debug(`Cache HIT: skill ${name}`);
+      return cached;
+    }
+
+    // Cache miss - get from map
+    const skill = this.skills.get(name);
+    if (skill) {
+      // Cache for 1 hour with file hash for invalidation
+      const fileHash = skill.filePath ? getFileHash(skill.filePath) : undefined;
+      skillCache.set(cacheKey, skill, 3600000, fileHash);
+      logger.debug(`Cache MISS: skill ${name} (cached now)`);
+    }
+    
+    return skill;
   }
 
   getAllSkills(): Skill[] {
@@ -96,7 +114,7 @@ export class SkillManager {
 
   getSkillsByNames(names: string[]): Skill[] {
     return names
-      .map(name => this.skills.get(name))
+      .map(name => this.getSkill(name)) // Use getSkill to leverage cache
       .filter((skill): skill is Skill => skill !== undefined);
   }
 
@@ -107,6 +125,8 @@ export class SkillManager {
   async reload(): Promise<void> {
     this.skills.clear();
     this.loaded = false;
+    // Clear skill cache on reload
+    skillCache.clear();
     await this.loadAll();
   }
 }

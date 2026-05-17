@@ -264,6 +264,161 @@ ANTHROPIC_API_KEY=sk-ant-xxx
 
 ---
 
+## ⚡ Provider Fallback & Reliability
+
+Skills Agent implements intelligent fallback and retry logic for maximum reliability:
+
+### Error Classification
+
+Errors are classified as **retryable** or **fatal**:
+
+**Retryable errors (automatic retry):**
+- Rate limit exceeded (429)
+- Request timeout (ETIMEDOUT)
+- Server errors (5xx)
+- Quota exceeded
+
+**Fatal errors (no retry):**
+- Authentication failures (401, 403)
+- Invalid request (400)
+- Context length exceeded
+- Unknown errors
+
+### Retry Strategy
+
+**Exponential backoff:**
+- Attempt 1: immediate
+- Attempt 2: wait 1s
+- Attempt 3: wait 2s
+- Attempt 4: wait 4s
+- Max wait: 10s
+
+**Max retries:** 2 (configurable via `MAX_RETRIES` env var)
+
+**Same tier preference:**
+- Free tier providers fallback to other free providers first
+- Premium tier providers fallback to other premium providers first
+- Cross-tier fallback only if same-tier exhausted
+
+### Timeout Handling
+
+**Default timeout:** 30s per request (configurable via `REQUEST_TIMEOUT` env var)
+
+**Behavior:**
+- Wraps provider execution with `Promise.race`
+- Throws `ETIMEDOUT` error code on timeout
+- Classified as retryable error → automatic fallback
+
+### Execution Metadata
+
+All MCP tool calls include attempt tracking in response:
+
+```json
+{
+  "result": "Implementation complete...",
+  "metadata": {
+    "attempts": [
+      {
+        "provider": "deepseek",
+        "status": "rate_limit",
+        "latency": 1234
+      },
+      {
+        "provider": "groq",
+        "status": "success",
+        "latency": 892
+      }
+    ],
+    "total_latency": 2126,
+    "fatal": false
+  }
+}
+```
+
+**Fields:**
+- `attempts`: Array of all providers tried (in order)
+- `total_latency`: Sum of all attempt latencies (ms)
+- `fatal`: Whether failure was fatal (no retries)
+
+### Logging
+
+**Retry attempts:**
+- Logged as warnings: `Provider deepseek failed (rate_limit), trying groq...`
+- Not visible to OpenCode user (silent fallback)
+- Logged to `~/.skills-agent/mcp.log`
+
+**Fatal errors:**
+- Logged with full context and stack trace
+- Visible to user as error response
+
+**Performance metrics:**
+- Per-provider latency tracked
+- Success/failure rates logged
+- Cache hit/miss ratios tracked
+
+### Configuration
+
+Add to `.env` for custom behavior:
+
+```bash
+# Retry configuration
+MAX_RETRIES=2                    # Default: 2
+REQUEST_TIMEOUT=30000            # Default: 30s (in ms)
+FALLBACK_SAME_TIER_FIRST=true    # Default: true
+
+# Backoff configuration
+MIN_BACKOFF=1000                 # Default: 1s
+MAX_BACKOFF=10000                # Default: 10s
+```
+
+### Example: Rate Limit Fallback
+
+```
+User: use skills-agent_implement_feature to add login
+
+Execution flow:
+1. Try DeepSeek (free tier)
+   → Rate limit (429)
+   → Log: "Provider deepseek rate limited, retrying with groq..."
+
+2. Try Groq (free tier, same tier preference)
+   → Success (200)
+   → Return result
+
+Metadata:
+{
+  "attempts": [
+    { "provider": "deepseek", "status": "rate_limit", "latency": 412 },
+    { "provider": "groq", "status": "success", "latency": 1123 }
+  ],
+  "total_latency": 1535,
+  "fatal": false
+}
+```
+
+### Example: Fatal Error (No Retry)
+
+```
+User: use skills-agent_implement_feature to add login
+
+Execution flow:
+1. Try DeepSeek
+   → Auth error (401)
+   → Classify as fatal
+   → No retry, return error immediately
+
+Metadata:
+{
+  "attempts": [
+    { "provider": "deepseek", "status": "auth_error", "latency": 234 }
+  ],
+  "total_latency": 234,
+  "fatal": true
+}
+```
+
+---
+
 ## 🚀 Next Steps
 
 1. **Add API key** to `.env` if you want to test with real LLM calls
