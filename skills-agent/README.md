@@ -30,6 +30,32 @@ cd ~/.skills-agent/skills-agent
 npm install && npm run build && npm run setup
 ```
 
+### Check Version
+
+```bash
+~/.skills-agent/skills-agent/check-version.sh
+```
+
+**Expected output for v0.2.0:**
+- 📦 Version: v0.2.0
+- 🔧 MCP Tools: 5
+- 📚 Skills: 22
+- 🎭 Personas: 10
+
+### Update to Latest
+
+```bash
+cd ~/.skills-agent/skills-agent
+git pull
+npm run build
+~/.skills-agent/skills-agent/reload-mcp.sh  # Restart MCP server
+```
+
+Or via installer (re-run):
+```bash
+bash <(curl -fsSL https://raw.githubusercontent.com/defrindr/skills-agent-installer/main/install.sh)
+```
+
 ### Uninstall
 
 ```bash
