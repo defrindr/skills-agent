@@ -26,7 +26,7 @@ export class ProviderResolver {
       const provider = config.providers[overrideProvider];
       if (provider && provider.enabled) {
         logger.debug(`Using override provider: ${overrideProvider}`);
-        return provider;
+        return { ...provider, name: overrideProvider };
       }
       logger.warn(`Override provider ${overrideProvider} not available, falling back`);
     }
@@ -37,7 +37,7 @@ export class ProviderResolver {
       const provider = config.providers[skillOverride.force_provider];
       if (provider && provider.enabled) {
         logger.debug(`Using skill override provider: ${skillOverride.force_provider}`);
-        return provider;
+        return { ...provider, name: skillOverride.force_provider };
       }
     }
 
@@ -47,7 +47,7 @@ export class ProviderResolver {
         const provider = config.providers[pref.name];
         if (provider && provider.enabled) {
           logger.debug(`Using skill preferred provider: ${pref.name}`);
-          return provider;
+          return { ...provider, name: pref.name };
         }
       }
     }
@@ -69,10 +69,12 @@ export class ProviderResolver {
     }
 
     // Fallback: First enabled provider
-    const fallbackProvider = Object.values(config.providers).find(p => p.enabled);
-    if (fallbackProvider) {
-      logger.warn(`Using fallback provider: ${fallbackProvider.name}`);
-      return fallbackProvider;
+    const fallbackEntry = Object.entries(config.providers).find(([_, p]) => p.enabled);
+    if (fallbackEntry) {
+      const [name, provider] = fallbackEntry;
+      const providerWithName = { ...provider, name };
+      logger.warn(`Using fallback provider: ${providerWithName.name}`);
+      return providerWithName;
     }
 
     throw new Error('No enabled providers available');
@@ -80,8 +82,9 @@ export class ProviderResolver {
 
   private getProviderByTier(tier: ProviderTier): Provider | null {
     const config = this.ensureConfig();
-    const providers = Object.values(config.providers)
-      .filter(p => p.enabled && p.tier === tier);
+    const providers = Object.entries(config.providers)
+      .filter(([_, p]) => p.enabled && p.tier === tier)
+      .map(([name, p]) => ({ ...p, name }));
 
     if (providers.length === 0) {
       return null;
@@ -100,8 +103,9 @@ export class ProviderResolver {
 
   getNextProvider(currentProvider: Provider): Provider | null {
     const config = this.ensureConfig();
-    const allProviders = Object.values(config.providers)
-      .filter(p => p.enabled && p.name !== currentProvider.name);
+    const allProviders = Object.entries(config.providers)
+      .filter(([name, p]) => p.enabled && name !== currentProvider.name)
+      .map(([name, p]) => ({ ...p, name }));
 
     // Try same tier first
     const sameTier = allProviders.find(p => p.tier === currentProvider.tier);

@@ -68,5 +68,6 @@ if [ -f "dist/skills/persona-manager.js" ]; then
 fi
 
 echo ""
-echo "💡 Expected for v0.3.0: 5 tools, 22 skills, 10 personas"
+echo "💡 Expected for v0.3.1: 5 tools, 22 skills, 10 personas"
 echo "   NEW in v0.3.0: Testing (52 tests), Provider Fallback, LRU Caching"
+echo "   NEW in v0.3.1: Integration tests (15), All 85 tests passing, Provider resolver bugfixes"

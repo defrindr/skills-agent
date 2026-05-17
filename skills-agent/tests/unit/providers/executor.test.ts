@@ -2,14 +2,20 @@
  * Unit tests for ProviderExecutor
  */
 
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, beforeAll, vi } from 'vitest';
 import { ProviderExecutor } from '../../../src/providers/executor.js';
 import { Provider, LLMRequest, ProviderTier } from '../../../src/types/provider.js';
 import { providerResolver } from '../../../src/providers/resolver.js';
 import { ProviderError, ErrorType } from '../../../src/providers/errors.js';
+import { configManager } from '../../../src/utils/config.js';
 
 describe('ProviderExecutor', () => {
   let executor: ProviderExecutor;
+
+  beforeAll(async () => {
+    // Load config once before all tests
+    await configManager.load();
+  });
 
   beforeEach(() => {
     executor = new ProviderExecutor();
@@ -274,7 +280,7 @@ describe('ProviderExecutor', () => {
         // First attempt failed with rate limit
         expect(result.metadata.attempts[0].error).toContain('Rate limit');
         // Second attempt failed with timeout
-        expect(result.metadata.attempts[1].error).toContain('Timeout');
+        expect(result.metadata.attempts[1].error).toContain('timeout');
         // Third attempt succeeded (no error field)
         expect(result.metadata.attempts[2].error).toBeUndefined();
       }

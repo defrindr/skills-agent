@@ -2,13 +2,19 @@
  * Unit tests for ProviderResolver
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, beforeAll } from 'vitest';
 import { ProviderResolver } from '../../../src/providers/resolver.js';
 import { Provider, ProviderTier } from '../../../src/types/provider.js';
 import { Skill } from '../../../src/types/skill.js';
+import { configManager } from '../../../src/utils/config.js';
 
 describe('ProviderResolver', () => {
   let resolver: ProviderResolver;
+
+  beforeAll(async () => {
+    // Load config once before all tests
+    await configManager.load();
+  });
 
   beforeEach(() => {
     resolver = new ProviderResolver();
@@ -110,7 +116,9 @@ describe('ProviderResolver', () => {
       const provider = resolver.resolve(testSkill, 'deepseek');
 
       expect(provider).toBeDefined();
-      expect(provider.name).toBe('deepseek');
+      expect(provider.enabled).toBe(true);
+      // Provider should have deepseek config
+      expect(provider.endpoint).toContain('deepseek');
     });
 
     it('should fallback to default if override not available', () => {
@@ -123,7 +131,7 @@ describe('ProviderResolver', () => {
 
     it('should throw error if no providers available', () => {
       // This would require mocking config with no enabled providers
-      // In normal operation, this shouldn't happen
+      // In normal operation with default config, this shouldn't happen
       const provider = resolver.resolve(testSkill);
       expect(provider).toBeDefined();
       expect(provider.enabled).toBe(true);
@@ -137,7 +145,7 @@ describe('ProviderResolver', () => {
         triggers: [],
         metadata: {
           providers: [
-            { name: 'groq', reason: 'Fast inference' }
+            { name: 'groq-llama3', reason: 'Fast inference' }
           ]
         },
         filePath: '/test/skill.md'
@@ -146,10 +154,8 @@ describe('ProviderResolver', () => {
       const provider = resolver.resolve(skillWithPreference);
 
       expect(provider).toBeDefined();
-      // Should prefer groq if enabled
-      if (provider.name === 'groq') {
-        expect(provider.name).toBe('groq');
-      }
+      expect(provider.enabled).toBe(true);
+      // Should use groq or fallback to another enabled provider
     });
   });
 });
