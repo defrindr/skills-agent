@@ -20,7 +20,8 @@
     "test:ui": "vitest --ui",
     "test:coverage": "vitest run --coverage",
     "cache:stats": "node dist/cli.js cache:stats",
-    "cache:clear": "node dist/cli.js cache:clear"
+    "cache:clear": "node dist/cli.js cache:clear",
+    "benchmark": "tsc && node dist/benchmarks/performance.js"
   },
   "keywords": [
     "mcp",
@@ -45,6 +46,7 @@
   },
   "devDependencies": {
     "@types/node": "^20.19.41",
+    "@vitest/coverage-v8": "^4.1.6",
     "@vitest/ui": "^4.1.6",
     "c8": "^11.0.0",
     "typescript": "^5.3.0",
