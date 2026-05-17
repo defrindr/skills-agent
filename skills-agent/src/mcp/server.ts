@@ -16,15 +16,17 @@ import { skillManager } from '../skills/manager.js';
 import { personaManager } from '../skills/persona-manager.js';
 import { configManager } from '../utils/config.js';
 import { logger } from '../utils/logger.js';
+import { getVersion } from '../version.js';
 
 export class SkillsMCPServer {
   private server: Server;
 
   constructor() {
+    const version = getVersion();
     this.server = new Server(
       {
         name: 'skills-agent',
-        version: '0.1.0',
+        version,
       },
       {
         capabilities: {
@@ -102,7 +104,8 @@ export class SkillsMCPServer {
   }
 
   async start(): Promise<void> {
-    logger.info('Starting Skills Agent MCP Server...');
+    const version = getVersion();
+    logger.info(`Starting Skills Agent MCP Server v${version}...`);
 
     try {
       // Load configuration
@@ -116,6 +119,8 @@ export class SkillsMCPServer {
       // Load personas
       await personaManager.loadAll();
       logger.info(`Loaded ${personaManager.getAllPersonas().length} personas`);
+
+      logger.info(`Skills Agent v${version} ready — ${skillManager.getAllSkills().length} skills, ${personaManager.getAllPersonas().length} personas, ${SKILL_TOOLS.length} tools`);
 
       // Start server with stdio transport
       const transport = new StdioServerTransport();
