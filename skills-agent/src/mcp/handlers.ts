@@ -10,6 +10,12 @@ import { providerResolver } from '../providers/resolver.js';
 import { providerExecutor } from '../providers/executor.js';
 import { detectFramework } from '../utils/framework-detector.js';
 import { logger } from '../utils/logger.js';
+import { mcpRecommender } from './recommender.js';
+import { mcpConfigWriter } from './config-writer.js';
+import { ProjectType } from './registry.js';
+import { promises as fs } from 'fs';
+import { join, dirname } from 'path';
+import { fileURLToPath } from 'url';
 
 export class ToolHandlers {
   async handleExploreCodebase(args: any): Promise<string> {
@@ -429,6 +435,212 @@ Be specific with commands. Only include features they requested. Match structure
 
     return skillMap[framework] || [];
   }
+
+  // ============================================================
+  // agent_planner — Phase 1 of agent-planner skill
+  // ============================================================
+
+  async handleAgentPlanner(args: any): Promise<string> {
+    const {
+      description,
+      path: targetPath = process.cwd(),
+      framework: frameworkHint,
+      projectType: typeHint,
+      writeFiles = false,
+      autoConfigMcp = false,
+      persona = 'project-planner',
+      provider: overrideProvider,
+    } = args;
+
+    logger.info(`agent_planner: ${description.substring(0, 60)}... write=${writeFiles}`);
+
+    const requirements = this.parseProjectRequirements(description, frameworkHint);
+    if (!requirements.hasEnoughInfo) {
+      return this.buildRequirementsGatheringResponse(requirements);
+    }
+
+    const projectType = (typeHint ?? this.inferProjectType(requirements)) as ProjectType;
+    const hasDatabase = requirements.features.some(f =>
+      ['database', 'postgres', 'mysql', 'mongodb', 'db'].includes(f)
+    );
+
+    // Step 1: Recommend MCP servers
+    const mcpRecs = mcpRecommender.recommend({
+      projectType,
+      framework: requirements.framework,
+      hasDatabase,
+      hasBrowser: projectType === 'web' || projectType === 'fullstack',
+      hasVcs: true,
+    });
+    const mcpSnippet = mcpRecommender.buildConfigSnippet(mcpRecs);
+
+    // Step 2: Generate AGENTS.md + flow stubs via skill context
+    const skill = skillManager.getSkill('agent-planner');
+    if (!skill) {
+      throw new Error('agent-planner skill not found');
+    }
+
+    const skillsToLoad = ['agent-planner', 'project-readability', 'project-initializer'];
+    if (requirements.framework) {
+      skillsToLoad.push(...(await this.getFrameworkSkills(requirements.framework)));
+    }
+
+    const context = await contextBuilder.build({
+      persona,
+      skills: skillsToLoad,
+      compressionLevel: 'compact',
+    });
+
+    const selectedProvider = providerResolver.resolve(skill, overrideProvider);
+
+    const prompt: Message[] = [
+      {
+        role: 'system',
+        content: `You are a project planner following the agent-planner skill. Output PLAIN MARKDOWN sections in this order:
+
+## FLOWS
+List 3-7 user flows. For each: name, 1-line description.
+
+## AGENTS_MD
+Full content for .opencode/AGENTS.md following the template (Project Context, Active Skills, Workflows, Flow References, MCP Servers, Conventions).
+
+## FLOW_DOCS
+For each flow, output: \`### {flow-name}\` then full flow doc body (Overview, Actors, Steps, API Contracts, Errors, Testing).
+
+Be concise. No fluff. No emoji.
+
+${context}`,
+      },
+      {
+        role: 'user',
+        content: `Plan this project:
+
+**Type:** ${projectType}
+**Framework:** ${requirements.framework}
+**Scale:** ${requirements.scale}
+**Features:** ${requirements.features.join(', ') || 'base setup'}
+
+Output the three sections (FLOWS, AGENTS_MD, FLOW_DOCS).`,
+      },
+    ];
+
+    const result = await providerExecutor.execute({
+      provider: selectedProvider,
+      messages: prompt,
+      max_tokens: 6000,
+    });
+
+    if (!result.success || !result.response) {
+      throw new Error(`agent_planner failed: ${result.error?.message}`);
+    }
+
+    const parsed = this.parsePlannerOutput(result.response.content);
+
+    // Step 3: Preview or write
+    const sections: string[] = [];
+    sections.push(`# Agent Planner Result\n`);
+    sections.push(`**Project:** ${requirements.framework} ${projectType} (${requirements.scale})`);
+    sections.push(`**Provider:** ${result.response.provider}`);
+    sections.push(`**Cost:** $${result.response.cost?.toFixed(4) ?? '0.0000'}\n`);
+
+    sections.push(`## Recommended MCP Servers\n`);
+    for (const rec of mcpRecs) {
+      sections.push(`- **${rec.server.displayName}** [${rec.priority}] — ${rec.reason}`);
+    }
+
+    sections.push(`\n## Detected Flows\n${parsed.flows || '(none)'}\n`);
+
+    if (writeFiles) {
+      const writeResult = await this.writePlannerArtifacts(targetPath, parsed, mcpSnippet);
+      sections.push(`## Files Written\n`);
+      writeResult.forEach(f => sections.push(`- ${f}`));
+    } else {
+      sections.push(`## Preview (writeFiles=false)\n`);
+      sections.push(`Call again with \`writeFiles: true\` to generate:\n`);
+      sections.push(`- ${join(targetPath, '.opencode/AGENTS.md')}`);
+      sections.push(`- ${join(targetPath, '.opencode/flows/*.md')}`);
+      sections.push(`- ${join(targetPath, '.opencode/recommended-mcps.json')}`);
+    }
+
+    if (autoConfigMcp) {
+      sections.push(`\n## MCP Auto-Config\n`);
+      const writeRes = await mcpConfigWriter.merge(mcpSnippet.mcp as Record<string, unknown>);
+      if (writeRes.ok) {
+        sections.push(`Updated: ${writeRes.path}`);
+        if (writeRes.backupPath) sections.push(`Backup: ${writeRes.backupPath}`);
+        if (writeRes.added.length) sections.push(`Added: ${writeRes.added.join(', ')}`);
+        if (writeRes.skipped.length) sections.push(`Skipped (already exists): ${writeRes.skipped.join(', ')}`);
+      } else {
+        sections.push(`Failed: ${writeRes.error}`);
+        if (writeRes.backupPath) sections.push(`Rolled back from: ${writeRes.backupPath}`);
+      }
+    } else {
+      sections.push(`\n## MCP Config Snippet (not applied)\n`);
+      sections.push(`\`\`\`json\n${JSON.stringify(mcpSnippet, null, 2)}\n\`\`\``);
+      sections.push(`\nCall again with \`autoConfigMcp: true\` to merge into ~/.config/opencode/opencode.json (with backup).`);
+    }
+
+    return sections.join('\n');
+  }
+
+  private inferProjectType(req: any): ProjectType {
+    if (req.type) return req.type as ProjectType;
+    if (['flutter', 'react-native'].includes(req.framework)) return 'mobile';
+    if (['laravel', 'nestjs', 'expressjs', 'fastapi', 'golang'].includes(req.framework)) return 'api';
+    if (['nextjs', 'react', 'vue', 'nuxt'].includes(req.framework)) return 'web';
+    return 'fullstack';
+  }
+
+  private parsePlannerOutput(content: string): { flows: string; agentsMd: string; flowDocs: string } {
+    const grab = (start: string, end?: string) => {
+      const re = end
+        ? new RegExp(`##\\s*${start}\\s*([\\s\\S]*?)(?=##\\s*${end})`, 'i')
+        : new RegExp(`##\\s*${start}\\s*([\\s\\S]*)$`, 'i');
+      return (content.match(re)?.[1] ?? '').trim();
+    };
+    return {
+      flows: grab('FLOWS', 'AGENTS_MD'),
+      agentsMd: grab('AGENTS_MD', 'FLOW_DOCS'),
+      flowDocs: grab('FLOW_DOCS'),
+    };
+  }
+
+  private async writePlannerArtifacts(
+    targetPath: string,
+    parsed: { flows: string; agentsMd: string; flowDocs: string },
+    mcpSnippet: Record<string, unknown>
+  ): Promise<string[]> {
+    const opencodeDir = join(targetPath, '.opencode');
+    const flowsDir = join(opencodeDir, 'flows');
+    await fs.mkdir(flowsDir, { recursive: true });
+
+    const written: string[] = [];
+
+    const agentsPath = join(opencodeDir, 'AGENTS.md');
+    await fs.writeFile(agentsPath, parsed.agentsMd || '# Project Agents\n\n(generated)\n', 'utf-8');
+    written.push(agentsPath);
+
+    // Split FLOW_DOCS by `### {name}` headings
+    const flowSections = parsed.flowDocs.split(/^###\s+/m).filter(s => s.trim());
+    for (const section of flowSections) {
+      const firstLine = section.split('\n')[0].trim();
+      const slug = firstLine.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+      if (!slug) continue;
+      const flowPath = join(flowsDir, `${slug}.md`);
+      await fs.writeFile(flowPath, `# ${firstLine}\n\n${section.split('\n').slice(1).join('\n')}`, 'utf-8');
+      written.push(flowPath);
+    }
+
+    const mcpPath = join(opencodeDir, 'recommended-mcps.json');
+    await fs.writeFile(mcpPath, JSON.stringify(mcpSnippet, null, 2), 'utf-8');
+    written.push(mcpPath);
+
+    return written;
+  }
+
+  // ============================================================
+  // (original helpers continue below)
+  // ============================================================
 
   private buildExplorePrompt(path: string, depth: string, context: string, frameworkInfo: string): Message[] {
     return [

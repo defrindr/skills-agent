@@ -70,6 +70,10 @@ export class SkillsMCPServer {
             result = await toolHandlers.handleInitProject(args);
             break;
 
+          case 'agent_planner':
+            result = await toolHandlers.handleAgentPlanner(args);
+            break;
+
           default:
             throw new Error(`Unknown tool: ${name}`);
         }

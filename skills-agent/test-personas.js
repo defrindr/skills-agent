@@ -54,7 +54,38 @@ async function testPersonaSystem() {
     }
 
     console.log('✅ All tests passed!\n');
-    
+
+    // 6. Test role-based personas (Phase 2)
+    console.log('6️⃣ Testing role-based personas...');
+    const roles = [
+      'backend-architect',
+      'frontend-specialist',
+      'mobile-engineer',
+      'database-architect',
+      'security-auditor',
+      'ux-stylist',
+      'project-planner',
+    ];
+    const missing = roles.filter(r => !personaManager.load(r));
+    if (missing.length) {
+      throw new Error(`Missing role personas: ${missing.join(', ')}`);
+    }
+    console.log(`✅ All ${roles.length} role personas loaded\n`);
+
+    // 7. Test MCP registry + recommender
+    console.log('7️⃣ Testing MCP registry + recommender...');
+    const { MCP_REGISTRY } = await import('./dist/mcp/registry.js');
+    const { mcpRecommender } = await import('./dist/mcp/recommender.js');
+    const mcpCount = Object.keys(MCP_REGISTRY).length;
+    console.log(`✅ Registry has ${mcpCount} MCP servers`);
+    const recs = mcpRecommender.recommend({
+      projectType: 'fullstack',
+      hasDatabase: true,
+      hasBrowser: true,
+      hasVcs: true,
+    });
+    console.log(`✅ Fullstack got ${recs.length} recommendations\n`);
+
     console.log('📝 Sample context preview (red-team, compact):');
     console.log('---');
     console.log(context2.substring(0, 500) + '...\n');

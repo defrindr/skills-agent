@@ -83,20 +83,32 @@ use skills-agent_init_project to create a new Next.js 15 app
 
 ## 📦 What's Included
 
-### MCP Tools (4)
+### MCP Tools (5)
 
 Exposed via OpenCode MCP:
 - `skills-agent_explore_codebase` - Analyze project architecture **(supports personas)**
 - `skills-agent_implement_feature` - Implement features with best practices **(supports personas)**
 - `skills-agent_init_project` - Initialize new projects with guidance **(supports personas)**
 - `skills-agent_load_skill_context` - Load specific skill content **(supports personas)**
+- `skills-agent_agent_planner` - Plan project end-to-end: flows + `.opencode/AGENTS.md` + MCP recommendations **(NEW)**
 
-### Personas (3)
+### Personas (10)
 
-**NEW:** Apply different lenses to skills without modifying underlying patterns:
+Apply different lenses to skills without modifying underlying patterns:
+
+**Core lenses (3):**
 - `senior-engineer` (default) - Professional, pragmatic, maintainability-focused
 - `red-team` - Security adversarial, vulnerability-focused, exploit paths
 - `minimalist` - Terse, code-first, minimal explanations
+
+**Role-based (7) — NEW:**
+- `backend-architect` - API contract first, validate at boundary
+- `frontend-specialist` - Small components, camelCase boundary, 3 states always
+- `mobile-engineer` - List perf, platform parity, SafeArea
+- `database-architect` - STOP/ASK/WAIT/VERIFY Database-First Protocol
+- `security-auditor` - Risk-prioritized findings (Critical→Low)
+- `ux-stylist` - Design tokens, anti-SMK-2016 rules
+- `project-planner` - Discovery, flow mapping, MCP decision matrix
 
 See [`skills/personas/README.md`](skills/personas/README.md) for custom personas.
 
