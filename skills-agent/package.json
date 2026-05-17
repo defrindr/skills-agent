@@ -1,6 +1,6 @@
 {
   "name": "@defrindr/skills-agent",
-  "version": "0.3.1",
+  "version": "0.4.0",
   "description": "Multi-provider AI agent skills system with MCP integration for OpenCode",
   "type": "module",
   "main": "dist/index.js",
