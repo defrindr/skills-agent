@@ -20,6 +20,19 @@ bash <(curl -fsSL https://raw.githubusercontent.com/defrindr/skills-agent-instal
 3. Authentication: `gh auth login`
 4. Repository access
 
+**Post-install (optional):**
+Install OpenCode agents for conversational access:
+```bash
+# Global (all projects)
+cp ~/.skills-agent/skills-agent/opencode-agents/*.md ~/.config/opencode/agents/
+
+# Per-project
+mkdir -p .opencode/agents
+cp ~/.skills-agent/skills-agent/opencode-agents/*.md .opencode/agents/
+```
+
+Then restart OpenCode to load agents.
+
 See [skills-agent-installer](https://github.com/defrindr/skills-agent-installer) for detailed setup guide.
 
 ### Manual Installation
@@ -41,6 +54,7 @@ npm install && npm run build && npm run setup
 - 🔧 MCP Tools: 5
 - 📚 Skills: 22
 - 🎭 Personas: 10
+- 🤖 OpenCode Agents: 10 (if installed)
 
 ### Update to Latest
 
@@ -118,6 +132,15 @@ Exposed via OpenCode MCP:
 - `skills-agent_load_skill_context` - Load specific skill content **(supports personas)**
 - `skills-agent_agent_planner` - Plan project end-to-end: flows + `.opencode/AGENTS.md` + MCP recommendations **(NEW)**
 
+### OpenCode Agents (10) — NEW
+
+Conversational agents with pre-loaded skills:
+- `@backend-architect`, `@frontend-specialist`, `@mobile-engineer`, `@project-planner`
+- `@database-architect`, `@security-auditor`, `@ux-stylist`
+- `@senior-engineer`, `@red-team`, `@minimalist`
+
+See [Hybrid Approach](#-hybrid-approach-mcp-tools--opencode-agents) for usage patterns.
+
 ### Personas (10)
 
 Apply different lenses to skills without modifying underlying patterns:
@@ -185,6 +208,102 @@ Route tasks to best provider based on complexity:
 - Auto-detected on install
 - Works with native skills AND MCP tools
 - No manual configuration
+
+---
+
+## 🔀 Hybrid Approach: MCP Tools + OpenCode Agents
+
+Skills Agent provides **two ways** to access the same underlying skills:
+
+### 1. MCP Tools (Programmatic)
+Direct function calls with explicit parameters:
+```
+use skills-agent_implement_feature path=. description="add user login"
+```
+
+**Best for:**
+- Automation workflows
+- Explicit control over parameters
+- Integration with other MCP tools
+- Scripts and batch operations
+
+### 2. OpenCode Agents (Conversational)
+Natural language interaction with loaded skill context:
+```
+@backend-architect implement user login with JWT
+```
+
+**Best for:**
+- Interactive development
+- Role-specific guidance
+- Complex multi-step tasks
+- Code reviews and discussions
+
+### OpenCode Agents (10)
+
+Specialized agents with pre-loaded skills and persona:
+
+**Architecture & Planning:**
+- `@backend-architect` - API-first, validation at boundaries, domain-driven design
+- `@frontend-specialist` - Component patterns, state management, UI/UX best practices
+- `@mobile-engineer` - Platform parity, performance optimization, native patterns
+- `@project-planner` - Discovery, flow mapping, MCP recommendations, sprint planning
+
+**Technical Specialists:**
+- `@database-architect` - Schema design, query optimization, migration strategies (read-only mode)
+- `@security-auditor` - Threat modeling, vulnerability assessment, compliance (read-only mode)
+- `@ux-stylist` - Design systems, tokens, accessibility, professional styling
+
+**Code Quality:**
+- `@senior-engineer` - Maintainability, readability, pragmatic architecture (default persona)
+- `@red-team` - Adversarial security testing, exploit paths, hardening (read-only mode)
+- `@minimalist` - Terse, code-first, no explanations, maximum speed
+
+### Installing OpenCode Agents
+
+**Global installation** (available in all projects):
+```bash
+cp ~/.skills-agent/skills-agent/opencode-agents/*.md ~/.config/opencode/agents/
+```
+
+**Per-project installation** (project-specific):
+```bash
+mkdir -p .opencode/agents
+cp ~/.skills-agent/skills-agent/opencode-agents/*.md .opencode/agents/
+```
+
+**Restart OpenCode** to load agents:
+```
+Quit OpenCode → Reopen
+```
+
+See [`opencode-agents/README.md`](opencode-agents/README.md) for detailed usage.
+
+### When to Use Which?
+
+| Scenario | Use MCP Tool | Use OpenCode Agent |
+|----------|--------------|-------------------|
+| Initialize new project | `skills-agent_init_project` | `@project-planner` |
+| Explore unfamiliar codebase | `skills-agent_explore_codebase` | `@senior-engineer explore this codebase` |
+| Implement specific feature | `skills-agent_implement_feature` | `@backend-architect add user auth` |
+| Security review | `skills-agent_explore_codebase persona=red-team` | `@security-auditor review security` |
+| Database schema design | `skills-agent_load_skill_context framework=database-designer` | `@database-architect design schema for...` |
+| UI styling review | `skills-agent_load_skill_context framework=general-styling` | `@ux-stylist review this component` |
+| Quick code generation | `skills-agent_implement_feature persona=minimalist` | `@minimalist add cache layer` |
+
+### Agent Delegation
+
+Agents can invoke other agents or MCP tools:
+
+```
+@backend-architect implement user login
+
+Agent internally:
+1. Loads project-readability + expressjs-readability skills
+2. Asks @database-architect to review schema changes
+3. Invokes skills-agent_implement_feature for structured implementation
+4. Returns complete implementation with best practices
+```
 
 ---
 

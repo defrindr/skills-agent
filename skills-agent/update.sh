@@ -21,11 +21,12 @@ if [ -f "$INSTALL_DIR/config/config.yaml" ]; then
 fi
 
 # Sync files (preserve config)
+# Note: repo has skills-agent/ subdirectory, sync that instead of root
 rsync -av --delete \
   --exclude='config/config.yaml' \
   --exclude='node_modules' \
   --exclude='.git' \
-  "$TMP_DIR/" "$INSTALL_DIR/"
+  "$TMP_DIR/skills-agent/" "$INSTALL_DIR/"
 
 cd "$INSTALL_DIR"
 npm install --silent
