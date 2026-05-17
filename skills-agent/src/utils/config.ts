@@ -7,6 +7,8 @@ import path from 'path';
 import { homedir } from 'os';
 import YAML from 'yaml';
 import { Config } from '../types/config.js';
+import { opencodeDetector } from './opencode-detector.js';
+import { logger } from './logger.js';
 
 const DEFAULT_CONFIG_PATH = path.join(homedir(), '.skills-agent', 'config.yaml');
 
@@ -62,6 +64,66 @@ export class ConfigManager {
     for (const [providerName, envVar] of Object.entries(envKeyMap)) {
       if (this.config.providers[providerName] && process.env[envVar]) {
         this.config.providers[providerName].api_key = process.env[envVar];
+      }
+    }
+
+    // Try to detect and inject OpenCode's configured model credentials
+    this.injectOpenCodeConfig();
+  }
+
+  private injectOpenCodeConfig(): void {
+    if (!this.config) return;
+
+    const detected = opencodeDetector.detectModel();
+    if (!detected) {
+      // No OpenCode model detected, disable premium providers and enable only free
+      logger.info('No OpenCode model detected, disabling premium providers');
+      this.disablePremiumProvidersWithoutKeys();
+      this.enableFreeProviders();
+      return;
+    }
+
+    const mappedProvider = opencodeDetector.mapProviderName(detected.provider);
+    const provider = this.config.providers[mappedProvider];
+
+    if (provider && detected.apiKey) {
+      provider.api_key = detected.apiKey;
+      provider.enabled = true;
+      logger.info(`Auto-detected OpenCode model: ${detected.provider}/${detected.model} → ${mappedProvider}`);
+    } else if (provider && !detected.apiKey) {
+      // Model detected but no API key - disable premium and use free providers
+      logger.info(`OpenCode model detected but no credentials, using free tier fallback`);
+      this.disablePremiumProvidersWithoutKeys();
+      this.enableFreeProviders();
+    }
+  }
+
+  private disablePremiumProvidersWithoutKeys(): void {
+    if (!this.config) return;
+    
+    // Disable all premium tier providers that don't have API keys
+    for (const [name, provider] of Object.entries(this.config.providers)) {
+      if (provider.tier === 'premium' && !provider.api_key) {
+        provider.enabled = false;
+        logger.info(`Disabled premium provider (no key): ${name}`);
+      }
+    }
+  }
+
+  private enableFreeProviders(): void {
+    if (!this.config) return;
+    
+    // When no API keys available, only enable bigpickel (OpenRouter via OpenCode Zen)
+    // which works without explicit credentials
+    for (const [name, provider] of Object.entries(this.config.providers)) {
+      if (provider.tier === 'free') {
+        if (name === 'bigpickel' || provider.api_key) {
+          provider.enabled = true;
+          logger.info(`Enabled free provider: ${name}`);
+        } else {
+          provider.enabled = false;
+          logger.info(`Disabled free provider (no key): ${name}`);
+        }
       }
     }
   }

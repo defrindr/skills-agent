@@ -46,7 +46,14 @@ export function classifyError(error: any, providerName?: string): ProviderError 
   }
 
   // Authentication errors (FATAL - no retry)
-  if (status === 401 || status === 403 || code === 'invalid_api_key' || code === 'authentication_error') {
+  if (
+    status === 401 ||
+    status === 403 ||
+    code === 'invalid_api_key' ||
+    code === 'authentication_error' ||
+    message.toLowerCase().includes('api_key') ||
+    message.toLowerCase().includes('api key')
+  ) {
     return new ProviderError(
       ErrorType.AUTH_ERROR,
       'Authentication failed - check API key',

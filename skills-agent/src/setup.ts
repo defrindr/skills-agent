@@ -178,12 +178,31 @@ function setupOpenCodeMCP() {
     config.mcp = {};
   }
   
+  // Detect available API keys and inject them into environment
+  const environment: Record<string, string> = {
+    SKILLS_DIR: skillsDir
+  };
+  
+  // Check for available API keys in environment and add them
+  const apiKeyEnvVars = [
+    'ANTHROPIC_API_KEY',
+    'OPENAI_API_KEY',
+    'GROQ_API_KEY',
+    'OPENROUTER_API_KEY',
+    'DEEPSEEK_API_KEY',
+    'OPENCODE_API_KEY'
+  ];
+  
+  for (const envVar of apiKeyEnvVars) {
+    if (process.env[envVar]) {
+      environment[envVar] = process.env[envVar]!;
+    }
+  }
+  
   config.mcp['skills-agent'] = {
     type: 'local',
     command: [nodePath, serverPath],
-    environment: {
-      SKILLS_DIR: skillsDir
-    },
+    environment,
     enabled: true,
     timeout: 10000
   };
@@ -192,6 +211,9 @@ function setupOpenCodeMCP() {
   fs.writeFileSync(opencodeConfigPath, JSON.stringify(config, null, 2));
   
   success(`OpenCode MCP configured at ${opencodeConfigPath}`);
+  if (Object.keys(environment).length === 1) {
+    warn('No API keys detected in environment. Configure credentials in ~/.config/opencode/opencode.json');
+  }
 }
 
 // Step 3: Verify installation

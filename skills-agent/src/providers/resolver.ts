@@ -6,6 +6,7 @@ import { Provider, ProviderTier } from '../types/provider.js';
 import { Skill } from '../types/skill.js';
 import { Config } from '../types/config.js';
 import { configManager } from '../utils/config.js';
+import { opencodeDetector } from '../utils/opencode-detector.js';
 import { logger } from '../utils/logger.js';
 
 export class ProviderResolver {
@@ -20,6 +21,22 @@ export class ProviderResolver {
 
   resolve(skill: Skill, overrideProvider?: string): Provider {
     const config = this.ensureConfig();
+    logger.debug(`Resolving provider for skill: ${skill.name}`);
+    logger.debug(`Skill metadata providers: ${skill.metadata.providers?.map(p => p.name).join(', ') || 'none'}`);
+    logger.debug(`Config enabled providers: ${Object.entries(config.providers).filter(([_, p]) => p.enabled).map(([name]) => name).join(', ')}`);
+    
+    // Priority 0: OpenCode's auto-detected model (if available and not explicitly overridden)
+    if (!overrideProvider) {
+      const detected = opencodeDetector.detectModel();
+      if (detected) {
+        const mappedProvider = opencodeDetector.mapProviderName(detected.provider);
+        const provider = config.providers[mappedProvider];
+        if (provider && provider.api_key) {
+          logger.debug(`Using OpenCode auto-detected provider: ${detected.provider}/${detected.model} → ${mappedProvider}`);
+          return { ...provider, name: mappedProvider };
+        }
+      }
+    }
     
     // Priority 1: Explicit override
     if (overrideProvider) {
@@ -95,6 +112,12 @@ export class ProviderResolver {
       // Groq models are typically fastest
       const groqProvider = providers.find(p => p.name.includes('groq'));
       if (groqProvider) return groqProvider;
+    }
+
+    // For free tier, prefer bigpickel (OpenCode Zen) as it's always available
+    if (tier === 'free') {
+      const bigPickelProvider = providers.find(p => p.name === 'bigpickel');
+      if (bigPickelProvider) return bigPickelProvider;
     }
 
     // Return first available
