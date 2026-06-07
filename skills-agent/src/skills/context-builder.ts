@@ -44,7 +44,7 @@ export class ContextBuilder {
       }
     }
     
-    // 2. Load skills (UNCHANGED - load as-is)
+    // 2. Load skills
     const skills = skillManager.getSkillsByNames(options.skills);
     
     if (skills.length === 0) {
@@ -52,8 +52,9 @@ export class ContextBuilder {
       return '';
     }
 
+    const compressionLevel = options.compressionLevel || 'full';
     const skillsSections = skills.map(skill => {
-      return `## Skill: ${skill.name}\n\n${skill.content}`;
+      return this.formatSkill(skill, compressionLevel);
     });
 
     parts.push(skillsSections.join('\n\n---\n\n'));
@@ -63,9 +64,8 @@ export class ContextBuilder {
 
   /**
    * Build context with just skills (no persona)
-   * Used when persona system is disabled or not needed
    */
-  async buildSkillsOnly(skillNames: string[]): Promise<string> {
+  async buildSkillsOnly(skillNames: string[], compressionLevel: PersonaCompressionLevel = 'full'): Promise<string> {
     const skills = skillManager.getSkillsByNames(skillNames);
     
     if (skills.length === 0) {
@@ -74,10 +74,32 @@ export class ContextBuilder {
     }
 
     const sections = skills.map(skill => {
-      return `## Skill: ${skill.name}\n\n${skill.content}`;
+      return this.formatSkill(skill, compressionLevel);
     });
 
     return sections.join('\n\n---\n\n');
+  }
+
+  /**
+   * Format a single skill for context output.
+   * Compact mode: main content + partial index (partials listed but not inlined)
+   * Full mode: main content + all partials appended
+   */
+  private formatSkill(skill: Skill, compressionLevel: PersonaCompressionLevel): string {
+    if (skill.partials.length === 0) {
+      return `## Skill: ${skill.name}\n\n${skill.content}`;
+    }
+
+    if (compressionLevel === 'full') {
+      const allContent = [skill.content, ...skill.partials.map(p => p.content)].join('\n\n');
+      return `## Skill: ${skill.name}\n\n${allContent}`;
+    }
+
+    // Compact/minimal: main content + partial index
+    const partialIndex = skill.partials
+      .map(p => `- \`${p.name}\``)
+      .join('\n');
+    return `## Skill: ${skill.name}\n\n${skill.content}\n\n### Available Partials\n\n${partialIndex}`;
   }
 }
 

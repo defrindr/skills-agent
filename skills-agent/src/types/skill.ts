@@ -2,12 +2,19 @@
  * Type definitions for Skills Agent
  */
 
+export interface SkillPartial {
+  name: string;        // e.g. "project-readability/naming"
+  content: string;
+  filePath: string;
+}
+
 export interface Skill {
   name: string;
   description: string;
   content: string;
   metadata: SkillMetadata;
   filePath?: string; // Path to SKILL.md file for cache invalidation
+  partials: SkillPartial[]; // Available partials for modular loading
 }
 
 export interface SkillMetadata {

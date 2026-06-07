@@ -44,7 +44,22 @@ export class SkillManager {
         const skill = skillParser.parse(filePath);
         if (skill) {
           this.skills.set(skill.name, skill);
-          logger.debug(`Loaded skill: ${skill.name}`);
+
+          // Register partials as individually loadable entries
+          for (const partial of skill.partials) {
+            if (!this.skills.has(partial.name)) {
+              this.skills.set(partial.name, {
+                name: partial.name,
+                description: `Part of ${skill.name}: ${partial.filePath}`,
+                content: partial.content,
+                metadata: {},
+                filePath: partial.filePath,
+                partials: [],
+              });
+            }
+          }
+
+          logger.debug(`Loaded skill: ${skill.name}${skill.partials.length > 0 ? ` (${skill.partials.length} partials)` : ''}`);
         }
       }
 
@@ -78,6 +93,19 @@ export class SkillManager {
             const skill = skillParser.parse(filePath);
             if (skill && !this.skills.has(skill.name)) {
               this.skills.set(skill.name, skill);
+
+              for (const partial of skill.partials) {
+                if (!this.skills.has(partial.name)) {
+                  this.skills.set(partial.name, {
+                    name: partial.name,
+                    description: `Part of ${skill.name}: ${partial.filePath}`,
+                    content: partial.content,
+                    metadata: {},
+                    filePath: partial.filePath,
+                    partials: [],
+                  });
+                }
+              }
             }
           }
         } catch (error) {

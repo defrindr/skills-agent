@@ -19,7 +19,10 @@ describe('ContextBuilder', () => {
     description: 'Readability guidelines',
     content: 'Content for project-readability skill',
     metadata: {},
-    filePath: '/path/to/project-readability.md'
+    filePath: '/path/to/project-readability.md',
+    partials: [
+      { name: 'project-readability/naming', content: 'Naming partial content', filePath: '/path/to/partials/naming.md' },
+    ],
   };
 
   const mockSkill2 = {
@@ -27,7 +30,8 @@ describe('ContextBuilder', () => {
     description: 'Token efficiency guidelines',
     content: 'Content for token-efficient-coding skill',
     metadata: {},
-    filePath: '/path/to/token-efficient-coding.md'
+    filePath: '/path/to/token-efficient-coding.md',
+    partials: [],
   };
 
   const mockPersona = {
@@ -262,6 +266,22 @@ describe('ContextBuilder', () => {
       await builder.buildSkillsOnly(skillNames);
 
       expect(skillManager.getSkillsByNames).toHaveBeenCalledWith(skillNames);
+    });
+
+    it('should show partial index in compact mode', async () => {
+      const result = await builder.buildSkillsOnly(['project-readability'], 'compact');
+
+      expect(result).toContain('Content for project-readability skill');
+      expect(result).toContain('Available Partials');
+      expect(result).toContain('project-readability/naming');
+      expect(result).not.toContain('Naming partial content'); // NOT inlined
+    });
+
+    it('should inline all partials in full mode', async () => {
+      const result = await builder.buildSkillsOnly(['project-readability'], 'full');
+
+      expect(result).toContain('Content for project-readability skill');
+      expect(result).toContain('Naming partial content'); // Inlined in full mode
     });
   });
 });

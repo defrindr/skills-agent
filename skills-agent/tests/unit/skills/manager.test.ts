@@ -120,6 +120,44 @@ describe('SkillManager', () => {
     });
   });
 
+  describe('partials', () => {
+    it('should register partials as individually loadable skills', async () => {
+      await skillManager.loadAll();
+
+      const partialSkill = skillManager.getSkill('partial-test/alpha');
+      expect(partialSkill).toBeDefined();
+      expect(partialSkill?.name).toBe('partial-test/alpha');
+      expect(partialSkill?.content).toContain('Content from alpha partial');
+    });
+
+    it('should register all partials from a skill', async () => {
+      await skillManager.loadAll();
+
+      const betaPartial = skillManager.getSkill('partial-test/beta');
+      expect(betaPartial).toBeDefined();
+      expect(betaPartial?.name).toBe('partial-test/beta');
+    });
+
+    it('should include partials list in parent skill', async () => {
+      await skillManager.loadAll();
+
+      const parentSkill = skillManager.getSkill('partial-test');
+      expect(parentSkill).toBeDefined();
+      expect(parentSkill?.partials.length).toBe(2);
+      expect(parentSkill?.partials[0].name).toBe('partial-test/alpha');
+      expect(parentSkill?.partials[1].name).toBe('partial-test/beta');
+    });
+
+    it('should load partials via getSkillsByNames', async () => {
+      await skillManager.loadAll();
+
+      const skills = skillManager.getSkillsByNames(['partial-test/alpha', 'partial-test/beta']);
+      expect(skills.length).toBe(2);
+      expect(skills[0].name).toBe('partial-test/alpha');
+      expect(skills[1].name).toBe('partial-test/beta');
+    });
+  });
+
   describe('reload', () => {
     it('should clear and reload all skills', async () => {
       await skillManager.loadAll();
