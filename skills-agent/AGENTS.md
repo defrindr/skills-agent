@@ -76,23 +76,27 @@ use skills-agent_load_skill_context framework=nestjs
 
 ## OpenCode Agents (Conversational Layer)
 
-### Available Agents (10)
+### Available Agents (14)
 
 **Architecture & Planning:**
 - `@backend-architect` - API-first, domain-driven, validation at boundaries
 - `@frontend-specialist` - Component patterns, state management, UI/UX
 - `@mobile-engineer` - Platform parity, performance, native patterns
 - `@project-planner` - Discovery, flows, MCP recommendations
+- `@feature-architect` - Feature design, API contracts, test strategy
 
 **Technical Specialists:**
 - `@database-architect` - Schema design, query optimization (read-only)
 - `@security-auditor` - Threat modeling, vulnerability assessment (read-only)
 - `@ux-stylist` - Design systems, tokens, professional styling
+- `@code-health` - Performance & security audit (read-only)
+- `@codebase-explorer` - Codebase mapping & analysis (read-only)
 
 **Code Quality:**
 - `@senior-engineer` - Maintainability, readability, pragmatic architecture
 - `@red-team` - Adversarial security, exploit paths (read-only)
 - `@minimalist` - Terse, code-first, no explanations
+- `@token-efficiency` - Compact, token-efficient code
 
 ### When to Use OpenCode Agents
 
@@ -143,12 +147,15 @@ Agent (loads general-styling skill):
 | Task | MCP Tool | OpenCode Agent |
 |------|----------|----------------|
 | **Init new project** | `skills-agent_init_project description="..."` | `@project-planner I need to build...` |
-| **Explore codebase first time** | `skills-agent_explore_codebase path=. depth=deep` | `@senior-engineer help me understand this codebase` |
-| **Add specific feature** | `skills-agent_implement_feature description="..."` | `@backend-architect implement user registration` |
+| **Explore codebase first time** | `skills-agent_explore_codebase path=. depth=deep` | `@codebase-explorer map this project` |
+| **Add specific feature** | `skills-agent_implement_feature description="..."` | `@feature-architect design order cancellation` |
+| **Implement feature** | `skills-agent_implement_feature description="..."` | `@backend-architect implement user registration` |
 | **Security audit** | `skills-agent_explore_codebase persona=red-team` | `@security-auditor find vulnerabilities` |
+| **Code health check** | `skills-agent_explore_codebase persona=security-auditor` | `@code-health audit this codebase` |
 | **Database schema** | `skills-agent_load_skill_context framework=database-designer` | `@database-architect design schema for orders` |
 | **UI/styling review** | `skills-agent_load_skill_context framework=general-styling` | `@ux-stylist review this component` |
 | **Quick code-only** | `skills-agent_implement_feature persona=minimalist` | `@minimalist add redis cache layer` |
+| **Token-efficient coding** | `skills-agent_implement_feature persona=minimalist` | `@token-efficiency compress this component` |
 | **Batch automation** | `for ... do use skills-agent_explore_codebase; done` | _(not suitable, use MCP tools)_ |
 | **Sprint planning** | `skills-agent_agent_planner path=.` | `@project-planner plan next sprint` |
 
@@ -242,8 +249,12 @@ Different agents have different access levels:
 | `@backend-architect` | ask | allow (safe) | Implementation tasks |
 | `@frontend-specialist` | ask | allow (safe) | Implementation tasks |
 | `@mobile-engineer` | ask | allow (safe) | Implementation tasks |
+| `@feature-architect` | ask | allow (safe) | Feature planning & design |
+| `@token-efficiency` | allow | allow | Speed priority, full access |
 | `@database-architect` | **deny** | **deny** | Read-only, STOP/ASK/WAIT/VERIFY protocol |
 | `@security-auditor` | **deny** | deny (audit only) | Read-only, adversarial audit |
+| `@code-health` | **deny** | deny (audit only) | Read-only, code health audit |
+| `@codebase-explorer` | **deny** | deny (audit only) | Read-only, codebase mapping |
 | `@red-team` | **deny** | deny (audit only) | Read-only, exploit finding |
 | `@ux-stylist` | ask | deny | Style guidance, no bash needed |
 | `@project-planner` | ask | allow (git) | Planning tasks, git access |
@@ -384,6 +395,7 @@ use skills-agent_implement_feature description="JWT auth" framework=expressjs
 - `@senior-engineer` = `persona=senior-engineer`
 - `@red-team` = `persona=red-team`
 - `@minimalist` = `persona=minimalist`
+- `@token-efficiency` = `persona=minimalist` (DeepSeek-powered)
 - Other agents map to role-based personas (backend-architect, frontend-specialist, etc.)
 
 You can override via MCP tools:

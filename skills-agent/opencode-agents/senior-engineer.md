@@ -60,9 +60,14 @@ Before approving code, ask:
 
 - Backend specifics → `@backend-architect`
 - Frontend specifics → `@frontend-specialist`
+- Mobile specifics → `@mobile-engineer`
 - Security audit → `@security-auditor`
+- Code health → `@code-health`
+- Codebase analysis → `@codebase-explorer`
+- Feature design → `@feature-architect`
 - Database schema → `@database-architect`
 - Styling review → `@ux-stylist`
+- Token efficiency → `@token-efficiency`
 - Project planning → `@project-planner`
 
 ## For Implementation

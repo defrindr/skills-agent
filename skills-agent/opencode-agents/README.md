@@ -1,6 +1,6 @@
 # OpenCode Agents for Skills Agent
 
-10 specialized OpenCode agents that integrate with Skills Agent MCP server.
+14 specialized OpenCode agents that integrate with Skills Agent MCP server.
 
 ## Quick Install
 
@@ -22,7 +22,7 @@ Restart OpenCode to load the agents.
 
 ## Available Agents
 
-### Role-Based (7)
+### Role-Based (8)
 
 1. **@backend-architect** - Backend API specialist with contract-first approach
    - Laravel, NestJS, Express, FastAPI, Go
@@ -59,9 +59,31 @@ Restart OpenCode to load the agents.
    - Invokes `agent_planner` MCP tool
    - Generates `.opencode/` artifacts
 
+### Service Agents (4)
+
+8. **@code-health** - Performance & security audit
+   - Memory leaks, N+1, XSS, SQL injection, auth gaps
+   - Prioritized report with severity and remediation
+   - Read-only, audit mode
+
+9. **@codebase-explorer** - First-time codebase mapping and analysis
+   - Framework detection, entry points, data flow
+   - Pattern assessment and quick wins
+   - Read-only, analysis mode
+
+10. **@feature-architect** - Feature design and implementation planning
+    - API contracts, data models, state, error handling
+    - Test strategy included
+    - Design first, code second
+
+11. **@token-efficiency** - Token-efficient coding specialist
+    - Dense code, minimal verbosity
+    - DeepSeek-powered for cost efficiency
+    - Full edit access for speed
+
 ### Core Lenses (3)
 
-8. **@senior-engineer** - Default professional pragmatic lens
+12. **@senior-engineer** - Default professional pragmatic lens
    - Boring code, scale-appropriate, maintainable
    - Balance between MVP and over-engineering
 
@@ -69,7 +91,7 @@ Restart OpenCode to load the agents.
    - Assume breach mentality, exploit paths
    - Attack surface analysis, blast radius mapping
 
-10. **@minimalist** - Terse code-first minimal explanations
+14. **@minimalist** - Terse code-first minimal explanations
     - No fluff, show don't tell
     - For when you know what you want
 
@@ -136,8 +158,12 @@ Agents use these permissions by default:
 - **mobile-engineer**: `edit: ask`, `bash: ask` (flutter/npm allowed)
 - **database-architect**: `edit: deny`, read-only (requires explicit approval)
 - **security-auditor**: `edit: deny`, `bash: deny`, read-only audit mode
+- **code-health**: `edit: deny`, `bash: deny`, read-only audit mode
+- **codebase-explorer**: `edit: deny`, `bash: deny`, read-only analysis mode
+- **feature-architect**: `edit: ask`, `bash: ask` (safe commands allowed)
 - **ux-stylist**: `edit: ask`, `bash: deny`, styling focus
 - **project-planner**: `edit: ask`, `bash: deny`, planning mode
+- **token-efficiency**: `edit: allow`, `bash: allow`, full access for speed
 - **senior-engineer**: `edit: ask`, `bash: ask`, balanced permissions
 - **red-team**: `edit: deny`, `bash: deny`, read-only threat model
 - **minimalist**: `edit: allow`, `bash: allow`, full access for speed
@@ -217,11 +243,11 @@ Agent will:
 
 ## Version
 
-Compatible with Skills Agent v0.2.0:
+Compatible with Skills Agent v0.3.0:
 - 5 MCP tools
 - 22 skills
-- 10 personas
-- 10 OpenCode agents
+- 14 personas
+- 14 OpenCode agents
 
 ## See Also
 
