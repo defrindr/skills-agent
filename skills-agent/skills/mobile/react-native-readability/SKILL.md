@@ -30,83 +30,46 @@ React Native bukan React yang di-compile ke native. Ada dua runtime yang berbica
 ### `FlatList`, bukan `ScrollView + map`
 
 ```tsx
-// ❌ ScrollView + map — semua item dirender sekaligus, crash di 1000+ item
-<ScrollView>
-  {orders.map(order => <OrderCard key={order.id} order={order} />)}
-</ScrollView>
-
-// ✅ FlatList — hanya render yang terlihat di viewport
-<FlatList
-  data={orders}
-  keyExtractor={item => item.id}
-  renderItem={({ item }) => <OrderCard order={item} />}
-  removeClippedSubviews
-  maxToRenderPerBatch={10}
-/>
+// ✅ FlatList — hanya render yang terlihat
+<FlatList data={orders} keyExtractor={i => i.id} renderItem={({ item }) => <OrderCard order={item} />} removeClippedSubviews maxToRenderPerBatch={10} />
+// ❌ ScrollView + map — render semua item, crash di 1000+
 ```
 
-### `SafeAreaView` selalu ada — dari `react-native-safe-area-context`
+### `SafeAreaView` dari `react-native-safe-area-context`
 
 ```tsx
-// ❌ Konten bisa tertutup notch atau home indicator
-<View style={styles.container}>...</View>
-
-// ✅ SafeAreaView dari library (bukan dari react-native — versi bawaan tidak reliable)
 import { SafeAreaView } from "react-native-safe-area-context"
-<SafeAreaView style={styles.container} edges={["top", "bottom"]}>...</SafeAreaView>
+<SafeAreaView edges={["top", "bottom"]}>...</SafeAreaView>
+// jangan pakai yg bawaan react-native — tidak reliable
 ```
 
 ### `useWindowDimensions`, bukan `Dimensions.get`
 
 ```tsx
-// ❌ Tidak update saat rotasi
-const { width } = Dimensions.get("window")
-
-// ✅ Reactive terhadap perubahan ukuran layar
-const { width } = useWindowDimensions()
+const { width } = useWindowDimensions()  // ✅ reactive terhadap rotasi
+// ❌ Dimensions.get("window") — tidak update saat rotasi
 ```
 
 ### `Pressable`, bukan `TouchableOpacity`
 
 ```tsx
-// ❌ API lama
-<TouchableOpacity onPress={handlePress}><Text>Press</Text></TouchableOpacity>
-
-// ✅ API baru — visual feedback bisa dikustomisasi per state
-<Pressable
-  onPress={handlePress}
-  style={({ pressed }) => [styles.button, pressed && styles.pressed]}
->
+<Pressable onPress={handlePress} style={({ pressed }) => [styles.btn, pressed && styles.btnPressed]}>
   <Text>Press</Text>
 </Pressable>
 ```
 
-### `StyleSheet.create`, bukan inline style
+### `StyleSheet.create`, bukan inline
 
 ```tsx
-// ❌ Inline style — object baru dibuat setiap render
-<View style={{ padding: 16, backgroundColor: "#fff", borderRadius: 8 }}>
-
-// ✅ StyleSheet.create — di-serialize sekali saat load, lebih cepat
-const styles = StyleSheet.create({
-  container: { padding: 16, backgroundColor: "#fff", borderRadius: 8 },
-})
-<View style={styles.container}>
+const styles = StyleSheet.create({ container: { padding: 16, backgroundColor: "#fff", borderRadius: 8 } })
+// ❌ inline style = object baru tiap render
 ```
 
-### Platform-specific — pakai file extension, bukan if-else untuk hal besar
+### Platform-specific — file extension untuk beda besar
 
 ```tsx
-// Untuk perbedaan kecil — Platform.select
-shadow: Platform.select({
-  ios: { shadowColor: "#000", shadowOpacity: 0.1, shadowRadius: 4 },
-  android: { elevation: 4 },
-})
-
-// Untuk perbedaan besar — file terpisah
-// DatePicker.ios.tsx
-// DatePicker.android.tsx
-// Metro bundler pilih file yang tepat otomatis
+// kecil: Platform.select({ ios: { shadowOpacity: 0.1 }, android: { elevation: 4 } })
+// besar: DatePicker.ios.tsx / DatePicker.android.tsx — Metro pilih otomatis
 ```
 
 ---
@@ -158,29 +121,17 @@ function OrderDetailScreen({ route, navigation }: Props) {
 ## 3. Screen tipis — logic di hooks
 
 ```tsx
-// ❌ Screen yang berisi semua logic
 function OrderListScreen() {
-  const [orders, setOrders] = useState([])
-  const [loading, setLoading] = useState(false)
-  // ... fetch, refresh, cancel logic ...
-}
-
-// ✅ Screen hanya menampilkan
-function OrderListScreen() {
-  const { orders, isLoading, refetch, isRefreshing } = useOrders()
-
+  const { orders, isLoading, refetch, isRefreshing } = useOrders() // ✅ logic di hook
   return (
     <SafeAreaView style={styles.container}>
-      <FlatList
-        data={orders}
-        keyExtractor={item => item.id}
-        renderItem={({ item }) => <OrderCard order={item} />}
+      <FlatList data={orders} keyExtractor={i => i.id} renderItem={({ item }) => <OrderCard order={item} />}
         refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={refetch} />}
-        ListEmptyComponent={isLoading ? <LoadingSpinner /> : <EmptyOrderList />}
-      />
+        ListEmptyComponent={isLoading ? <LoadingSpinner /> : <EmptyOrderList />} />
     </SafeAreaView>
   )
 }
+// ❌ jangan: useState + fetch di screen langsung
 ```
 
 ---

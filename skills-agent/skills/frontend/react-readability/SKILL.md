@@ -141,25 +141,13 @@ function OrdersPage() {
 
 ## 2. State management — pilih yang tepat
 
-| Scope | Solusi |
-|---|---|
-| Local UI state | `useState` |
-| Derived dari props/state | Hitung langsung, no hook |
-| Server data | TanStack Query |
-| Global UI state (auth, theme, modal) | Zustand |
-| URL state (filter, pagination) | React Router search params |
-| Form state | React Hook Form |
+- **Local UI** → `useState` | **Derived** → hitung langsung | **Server** → TanStack Query
+- **Global UI** (auth, theme) → Zustand | **URL** (filter, page) → search params | **Form** → React Hook Form
 
 ```tsx
-// ❌ Context untuk semua global state — re-render berlebihan
-const AppContext = createContext({ user, orders, cart, theme, modal })
-
-// ✅ Zustand untuk global UI state — granular subscription
-import { create } from "zustand"
-
+// ✅ Zustand — granular subscription, no Context re-render
 export const useAuthStore = create<{ user: User | null; setUser: (u: User | null) => void }>(set => ({
-  user: null,
-  setUser: user => set({ user }),
+  user: null, setUser: user => set({ user }),
 }))
 ```
 
@@ -187,20 +175,10 @@ function Button({ onClick, children, variant = "primary", disabled = false }: Bu
 ## 4. Error Boundary
 
 ```tsx
-import { Component, ReactNode } from "react"
-
 export class ErrorBoundary extends Component<{ children: ReactNode; fallback?: ReactNode }, { hasError: boolean }> {
   state = { hasError: false }
-
-  static getDerivedStateFromError(): { hasError: boolean } {
-    return { hasError: true }
-  }
-
-  render() {
-    return this.state.hasError
-      ? (this.props.fallback ?? <p>Something went wrong.</p>)
-      : this.props.children
-  }
+  static getDerivedStateFromError() { return { hasError: true } }
+  render() { return this.state.hasError ? (this.props.fallback ?? <p>Something went wrong.</p>) : this.props.children }
 }
 ```
 

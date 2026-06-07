@@ -90,41 +90,11 @@ orders, err := q.ListPendingOrders(ctx)
 
 ## 2. Struktur — scale-aware dengan internal/
 
-Go compiler enforce bahwa package di `internal/` tidak bisa diimport dari luar module. Boundary gratis tanpa linting.
+Go compiler enforce bahwa package di `internal/` tidak bisa diimport dari luar module.
 
-### Simple (< 5 endpoints, 1-2 dev)
-
-```
-myapp/
-├── main.go        ← wiring + handlers langsung
-├── model.go       ← semua model
-├── db.go          ← DB connection
-└── go.mod
-```
-
-### Medium (5-15 endpoints, 3-5 dev)
-
-```
-myapp/
-├── cmd/api/main.go
-├── internal/
-│   ├── orders/     ← handler.go, service.go, model.go
-│   └── products/   ← handler.go, service.go, model.go
-├── pkg/            ← apierr, middleware
-└── go.mod
-```
-
-### Complex (> 15 endpoints, > 5 dev)
-
-```
-myapp/
-├── cmd/api/main.go
-├── internal/
-│   ├── orders/     ← handler.go, service.go, repository.go, model.go
-│   ├── inventory/
-│   └── domain/     ← shared business rules
-└── pkg/
-```
+- **Simple** (< 5 endpoints): flat — `main.go`, `model.go`, `db.go`
+- **Medium** (5-15 endpoints): `cmd/api/main.go` + `internal/{orders,products}/` + `pkg/`
+- **Complex** (> 15 endpoints): tambah `internal/{inventory,domain}/` + repository pattern
 
 Gunakan repository pattern hanya jika perlu switch DB provider, complex query reuse, atau testing perlu banyak mock.
 
@@ -188,42 +158,28 @@ return nil, nil
 ## 6. Handler dan service
 
 ```go
-// internal/orders/handler.go
 type Handler struct{ service *Service }
 
-func NewHandler(svc *Service) *Handler { return &Handler{service: svc} }
-
 func RegisterRoutes(r *gin.Engine, db *sql.DB) {
-    h := NewHandler(NewService(NewRepository(db)))
+    h := &Handler{NewService(NewRepository(db))}
     g := r.Group("/orders")
-    g.POST("/", h.CreateOrder)
-    g.POST("/:orderID/cancel", h.CancelOrder)
+    g.POST("/cancel/:id", h.CancelOrder)
 }
 
 func (h *Handler) CancelOrder(c *gin.Context) {
-    order, err := h.service.CancelOrder(c.Request.Context(), c.Param("orderID"))
-    if err != nil {
-        apierr.Respond(c, err)
-        return
-    }
+    order, err := h.service.CancelOrder(c.Request.Context(), c.Param("id"))
+    if err != nil { apierr.Respond(c, err); return }
     apiresponse.OK(c, order)
 }
 ```
 
 ```go
-// internal/orders/service.go
-func (s *Service) CancelOrder(ctx context.Context, orderID string) (*Order, error) {
-    order, err := s.repo.FindByID(ctx, orderID)
-    if err != nil {
-        return nil, fmt.Errorf("find order %s: %w", orderID, err)
-    }
-    if order == nil {
-        return nil, apierr.New(apierr.NotFound, "Order not found.")
-    }
-    if order.Status == StatusShipped {
-        return nil, apierr.New(apierr.Conflict, "Order already shipped.")
-    }
-    return s.repo.UpdateStatus(ctx, orderID, StatusCancelled)
+func (s *Service) CancelOrder(ctx context.Context, id string) (*Order, error) {
+    order, err := s.repo.FindByID(ctx, id)
+    if err != nil { return nil, fmt.Errorf("find order %s: %w", id, err) }
+    if order == nil { return nil, apierr.New(apierr.NotFound, "Order not found.") }
+    if order.Status == StatusShipped { return nil, apierr.New(apierr.Conflict, "Order already shipped.") }
+    return s.repo.UpdateStatus(ctx, id, StatusCancelled)
 }
 ```
 
@@ -232,25 +188,17 @@ func (s *Service) CancelOrder(ctx context.Context, orderID string) (*Order, erro
 ## 7. Testing: table-driven
 
 ```go
-package orders_test
-
 func TestCancelOrder(t *testing.T) {
-    tests := []struct {
-        name          string
-        existingOrder *Order
-        wantErrCode   apierr.Code
-    }{
-        {name: "returns NOT_FOUND when order does not exist", existingOrder: nil, wantErrCode: apierr.NotFound},
-        {name: "returns CONFLICT when order has already shipped", existingOrder: &Order{Status: StatusShipped}, wantErrCode: apierr.Conflict},
+    tests := []struct { name string; existingOrder *Order; wantErr apierr.Code }{
+        {"NOT_FOUND when order does not exist", nil, apierr.NotFound},
+        {"CONFLICT when order shipped", &Order{Status: StatusShipped}, apierr.Conflict},
     }
-
     for _, tt := range tests {
         t.Run(tt.name, func(t *testing.T) {
-            svc := NewService(&mockRepo{order: tt.existingOrder})
-            _, err := svc.CancelOrder(t.Context(), "order-id")
+            _, err := NewService(&mockRepo{order: tt.existingOrder}).CancelOrder(t.Context(), "id")
             var appErr *apierr.AppError
             require.ErrorAs(t, err, &appErr)
-            assert.Equal(t, tt.wantErrCode, appErr.Code)
+            assert.Equal(t, tt.wantErr, appErr.Code)
         })
     }
 }
@@ -261,20 +209,14 @@ func TestCancelOrder(t *testing.T) {
 ## 8. Tooling
 
 ```bash
-gofmt -w .                     # format
-golangci-lint run              # linting
-go test -race ./...            # race detector
-govulncheck ./...              # vulnerability check
+gofmt -w . && golangci-lint run && go test -race ./... && govulncheck ./...
 ```
 
 ```dockerfile
 FROM golang:1.23-alpine AS builder
 WORKDIR /app
-COPY go.mod go.sum ./
-RUN go mod download
-COPY . .
-RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /bin/api ./cmd/api
-
+COPY go.mod go.sum . && RUN go mod download
+COPY . && RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /bin/api ./cmd/api
 FROM scratch
 COPY --from=builder /bin/api /api
 EXPOSE 8080

@@ -14,7 +14,7 @@ description: >
 
 # NestJS Readability Skill
 
-Skill ini adalah turunan khusus NestJS dari `common/project-readability`.
+Turunan khusus NestJS dari `common/project-readability`.
 
 > **Naming, folder structure, API response envelope, error handling, DRY, taste rules → ikuti `common/project-readability`.** Skill ini hanya mencakup hal spesifik NestJS.
 
@@ -34,59 +34,26 @@ Skill ini adalah turunan khusus NestJS dari `common/project-readability`.
 
 ## Database — STOP/ASK/WAIT/VERIFY Protocol
 
-### WAJIB: Jangan generate kode yang akses DB sebelum konfirmasi
+### Jangan generate kode yang akses DB sebelum konfirmasi
 
-**Protocol:**
-
-1. **STOP** — jangan langsung generate entity/migration
-2. **ASK** — tanya user: "Entity [X] sudah di-design?"
-3. **WAIT** — tunggu jawaban sebelum proceed
-4. **VERIFY** — pastikan entity ready sebelum generate kode
-
-**Checklist yang harus ditanyakan:**
+**Protocol:** 1. STOP — jangan langsung generate entity/migration. 2. ASK — tanya user entity sudah di-design? 3. WAIT — tunggu jawaban. 4. VERIFY — pastikan entity ready.
 
 ```
 Sebelum bikin [module-name], saya perlu cek database:
 1. Apakah entity [EntityName] sudah di-design? (ERD, relationships)
 2. Apakah entity file (orders.entity.ts) sudah ada?
 3. Apakah migration sudah di-run?
-4. Apakah ada index untuk common queries? (userId, status, createdAt)
 
 Please confirm:
-[ ] Entity sudah di-design
-[ ] Entity file sudah ada
-[ ] Migration sudah di-run
+[ ] Entity sudah di-design [ ] Entity file sudah ada [ ] Migration sudah di-run
 ```
-
-**JANGAN PROCEED sampai user confirm semua item.**
 
 ### Penting: `.schema.ts` ≠ entity
 
 - `orders.schema.ts` = **Zod validation** (request/response validation)
 - `orders.entity.ts` = **Database model** (TypeORM/Prisma entity)
 
-Jangan bingung. Validation schema ≠ database schema.
-
-```ts
-// orders.schema.ts — REQUEST VALIDATION
-import { z } from 'zod'
-export const CreateOrderSchema = z.object({
-  productId: z.string().uuid(),
-  quantity: z.number().int().positive(),
-})
-export type CreateOrderInput = z.infer<typeof CreateOrderSchema>
-```
-
-```ts
-// orders.entity.ts — DATABASE MODEL (Prisma/TypeORM)
-@Entity('orders')
-export class Order {
-  @PrimaryColumn('uuid') id: string
-  @Column('uuid') userId: string
-  @Column('uuid') productId: string
-  @Column('int') quantity: number
-}
-```
+Validation schema ≠ database schema. Jangan bingung.
 
 **Kalau entity belum di-design → invoke `database-designer` dulu** (setelah minta izin user).
 
@@ -95,47 +62,30 @@ export class Order {
 ## Struktur Folder — Scale-Aware
 
 ### Simple (< 5 endpoints, CRUD API)
-
 ```txt
 src/
-├── app.module.ts
-├── main.ts
-├── orders/
-│   ├── orders.controller.ts
-│   ├── orders.service.ts      ← langsung panggil DB, no repository
+├── app.module.ts ├── main.ts └── orders/
+│   ├── orders.controller.ts ├── orders.service.ts ← langsung panggil DB
 │   └── orders.schema.ts
-└── shared/
-    └── api-response.ts + app-error.ts
+└── shared/ └── api-response.ts + app-error.ts
 ```
 
 ### Medium (5-15 endpoints, business logic mulai kompleks)
-
 ```txt
 src/
-├── app.module.ts
-├── main.ts
-├── features/
-│   ├── auth/
-│   │   ├── auth.module.ts + controller + service + schema
-│   └── orders/
-│       └── ...
-└── shared/
-    ├── api/, errors/, middleware/
-    └── validation/ (common.schema.ts, zod-validation.pipe.ts)
+├── app.module.ts ├── main.ts └── features/
+│   ├── auth/ → module + controller + service + schema
+│   └── orders/ → ...
+└── shared/ ├── api/, errors/, middleware/ └── validation/
 ```
 
 ### Complex (> 15 endpoints, multiple domains)
-
 ```txt
 src/
 ├── app.module.ts + main.ts + config/
-├── features/
-│   ├── auth/ → module + controller + service + repository + schema + types
+├── features/ ├── auth/ → module + controller + service + repository + schema
 │   └── orders/ → ...
-└── shared/
-    ├── api/, errors/, security/, middleware/
-    ├── logger/, validation/
-    └── utils/ (case-converter, date, number, string)
+└── shared/ └── api/, errors/, middleware/, logger/, validation/
 ```
 
 **Gunakan repository pattern HANYA jika:** perlu switch ORM, complex query reuse (10+ use cases), testing perlu mock banyak DB calls.
@@ -145,18 +95,11 @@ src/
 ## App Module — Wiring, Bukan Logic
 
 ```ts
-@Module({
-  imports: [
-    ConfigModule.forRoot({ isGlobal: true }),
-    AuthModule,
-    UsersModule,
-    OrdersModule,
-  ],
-})
+@Module({ imports: [ConfigModule.forRoot({ isGlobal: true }), AuthModule, UsersModule, OrdersModule] })
 export class AppModule {}
 ```
 
-Kalau `app.module.ts` mulai terasa penuh → masalahnya module boundary, bukan butuh abstraction baru.
+Kalau `app.module.ts` mulai terasa penuh → masalahnya module boundary, bukan butuh abstraction.
 
 ---
 
@@ -165,11 +108,7 @@ Kalau `app.module.ts` mulai terasa penuh → masalahnya module boundary, bukan b
 Satu feature punya module sendiri. Export hanya provider yang benar-benar dibutuhkan feature lain.
 
 ```ts
-@Module({
-  controllers: [UsersController],
-  providers: [UsersService, UsersRepository],
-  exports: [UsersService],
-})
+@Module({ controllers: [UsersController], providers: [UsersService, UsersRepository], exports: [UsersService] })
 export class UsersModule {}
 ```
 
@@ -179,19 +118,14 @@ Jangan export semua provider biar gampang — itu bikin coupling liar.
 
 ## Controller Tipis, Service yang Punya Use-Case
 
-Controller: terima request, validasi input, panggil service, return hasil.
-Controller **tidak boleh berisi business rule**.
+Controller: terima request, validasi input, panggil service, return hasil. **Tidak boleh berisi business rule.**
 
 ```ts
 @Controller('orders')
 export class OrdersController {
   constructor(private readonly ordersService: OrdersService) {}
-
-  @Post()
-  @UsePipes(new ZodValidationPipe(CreateOrderSchema))
-  async createOrder(@Body() input: CreateOrderInput) {
-    return this.ordersService.createOrder(input)
-  }
+  @Post() @UsePipes(new ZodValidationPipe(CreateOrderSchema))
+  async createOrder(@Body() input: CreateOrderInput) { return this.ordersService.createOrder(input) }
 }
 ```
 
@@ -201,13 +135,11 @@ Service: use-case eksplisit, validasi bisnis, orchestrasi.
 @Injectable()
 export class OrdersService {
   constructor(private readonly ordersRepository: OrdersRepository) {}
-
   async createOrder(input: CreateOrderInput) {
     const pending = await this.ordersRepository.findPendingByUserId(input.userId)
     if (pending) throw new AppError(ErrorCode.CONFLICT, 'User already has a pending order.', 409)
     return this.ordersRepository.createOrder(input)
   }
-
   async cancelOrder(orderId: string) {
     const order = await this.ordersRepository.findById(orderId)
     if (!order) throw new AppError(ErrorCode.NOT_FOUND, 'Order does not exist.', 404)
@@ -222,15 +154,10 @@ export class OrdersService {
 ## File Naming
 
 ```txt
-orders.controller.ts
-orders.service.ts
-orders.repository.ts
-orders.schema.ts
-orders.types.ts
-orders.module.ts
+orders.controller.ts | orders.service.ts | orders.repository.ts | orders.schema.ts
 ```
 
-Hindari: `orderHandler.ts`, `orderManager.ts`, `orderLogic.ts`, `orderUtils.ts`.
+Hindari: `orderHandler.ts`, `orderManager.ts`, `orderLogic.ts`.
 
 ---
 
@@ -240,27 +167,19 @@ Hindari: `orderHandler.ts`, `orderManager.ts`, `orderLogic.ts`, `orderUtils.ts`.
 @Injectable()
 export class ZodValidationPipe<T> implements PipeTransform {
   constructor(private readonly schema: ZodSchema<T>) {}
-
   transform(value: unknown): T {
     const result = this.schema.safeParse(value)
     if (!result.success) throw new BadRequestException({
-      code: 'VALIDATION_FAILED', message: 'Request payload is invalid.',
-      details: result.error.flatten(),
+      code: 'VALIDATION_FAILED', message: 'Request payload is invalid.', details: result.error.flatten(),
     })
     return result.data
   }
 }
 ```
 
-Pakai:
-```ts
-@Post()
-@UsePipes(new ZodValidationPipe(CreateOrderSchema))
-async createOrder(@Body() input: CreateOrderInput) { ... }
-```
+Pakai: `@Post() @UsePipes(new ZodValidationPipe(CreateOrderSchema))`.
 
 Common schema untuk primitif yang benar-benar reused:
-
 ```ts
 export const UuidSchema = z.string().uuid()
 export const EmailSchema = z.string().email().toLowerCase()
@@ -274,39 +193,21 @@ export const PaginationSchema = z.object({
 
 ## API Response Envelope
 
-Semua response sukses:
+Lihat definisi `ApiSuccess`/`ApiError` di `common/project-readability`. Response publik **wajib camelCase**.
 
-```ts
-type ApiSuccess<T> = { ok: true; data: T; meta?: { page?: number; total?: number; tookMs?: number } }
-type ApiError = { ok: false; error: { code: string; message: string; details?: unknown } }
-```
-
-Dari `common/project-readability`. Response publik **wajib camelCase**.
-
-Response interceptor:
-
+Response interceptor (daftarkan global):
 ```ts
 @Injectable()
 export class ResponseInterceptor<T> implements NestInterceptor<T, ApiSuccess<T>> {
   intercept(_context: ExecutionContext, next: CallHandler<T>): Observable<ApiSuccess<T>> {
-    return next.handle().pipe(map((data) => ({
-      ok: true,
-      data: toCamelCaseDeep(data) as T,
-    })))
+    return next.handle().pipe(map((data) => ({ ok: true, data: toCamelCaseDeep(data) as T })))
   }
 }
-```
-
-Register global:
-```ts
 app.useGlobalInterceptors(new ResponseInterceptor())
 app.useGlobalFilters(new GlobalExceptionFilter())
 ```
 
----
-
-## camelCase Converter
-
+### camelCase Converter
 ```ts
 export function toCamelCaseDeep<T>(value: T): T {
   if (Array.isArray(value)) return value.map(toCamelCaseDeep) as T
@@ -317,10 +218,7 @@ export function toCamelCaseDeep<T>(value: T): T {
 }
 ```
 
-Aturan:
-- Convert response di interceptor boundary, jangan di tiap controller
-- Jangan convert class instance, Date, Buffer, atau stream
-- Untuk response besar, pertimbangkan mapping eksplisit di repository
+Convert response di interceptor boundary, jangan di tiap controller. Jangan convert class instance/Date/Buffer.
 
 ---
 
@@ -331,15 +229,12 @@ Aturan:
 export class GlobalExceptionFilter implements ExceptionFilter {
   catch(error: unknown, host: ArgumentsHost) {
     const res = host.switchToHttp().getResponse()
-
     if (error instanceof AppError)
       return res.status(error.statusCode).json({ ok: false, error: { code: error.code, message: error.message, details: toCamelCaseDeep(error.details) } })
-
     if (error instanceof HttpException) {
       const status = error.getStatus()
       return res.status(status).json({ ok: false, error: normalizeHttpException(error.getResponse()) })
     }
-
     captureException(error)
     return res.status(500).json({ ok: false, error: { code: 'INTERNAL_ERROR', message: 'Something went wrong.' } })
   }
@@ -363,20 +258,15 @@ export class GlobalExceptionFilter implements ExceptionFilter {
 ## NestJS-Specific PR Checklist
 
 ```
-[ ] Feature ada di src/features/<name>/ bukan src/controllers/ layer-first
+[ ] Feature ada di src/features/<name>/ bukan src/controllers/
 [ ] Controller tipis — tidak berisi business logic
 [ ] Service berisi use-case eksplisit dengan guard clauses
-[ ] Repository hanya data access, tidak ada if/else business rule
 [ ] Module hanya export provider yang benar-benar dibutuhkan
-[ ] Response sukses pakai { ok: true, data }
-[ ] Response error pakai { ok: false, error }
-[ ] Response keluar sudah camelCase (dari interceptor)
 [ ] Input divalidasi dengan Zod, bukan class-validator campur aduk
 [ ] Tidak ada any untuk payload external tanpa validasi
 [ ] Env divalidasi saat startup (EnvSchema)
 [ ] Request ID aktif di semua response
 [ ] Log pakai logger, bukan console.log
-[ ] Error tak terduga masuk logger/Sentry
 ```
 
 ---

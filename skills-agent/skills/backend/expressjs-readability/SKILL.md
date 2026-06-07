@@ -112,41 +112,9 @@ export async function createOrder(userId: string, input: CreateOrderInput) {
 
 ## 2. Struktur folder — scale-aware
 
-### Simple (< 5 routes, 1-2 dev)
-
-```
-src/
-├── routes/
-│   ├── orders.ts          ← handler langsung di router
-│   └── products.ts
-├── middleware/
-├── db.ts
-├── config.ts
-└── app.ts
-```
-
-### Medium (5-15 routes, 3-5 dev)
-
-```
-src/
-├── features/
-│   ├── orders/     ← orders.router.ts, orders.service.ts, orders.schema.ts
-│   └── products/   ← products.router.ts, products.service.ts
-├── shared/         ← middleware/, api/, errors/
-├── db.ts
-└── app.ts
-```
-
-### Complex (> 15 routes, > 5 dev)
-
-```
-src/
-├── features/
-│   ├── orders/     ← router.ts, service.ts, repository.ts, schema.ts
-│   └── inventory/
-├── shared/domain/  ← business rules
-└── app.ts
-```
+- **Simple** (< 5 routes): `src/routes/` + `src/middleware/` + `db.ts` + `config.ts`
+- **Medium** (5-15 routes): `src/features/{orders,products}/` + `src/shared/`
+- **Complex** (> 15 routes): tambah `src/shared/domain/` + repository pattern
 
 ---
 
@@ -244,23 +212,12 @@ npm install -D typescript vitest @types/express tsx
 ```
 
 ```dockerfile
-FROM node:22-alpine AS deps
+FROM node:22-alpine
 WORKDIR /app
 COPY package*.json ./
 RUN npm ci --omit=dev
-
-FROM node:22-alpine AS builder
-WORKDIR /app
-COPY package*.json tsconfig.json ./
-RUN npm ci
-COPY src ./src
-RUN npm run build
-
-FROM node:22-alpine AS runner
-WORKDIR /app
+COPY dist ./dist
 ENV NODE_ENV=production
-COPY --from=deps /app/node_modules ./node_modules
-COPY --from=builder /app/dist ./dist
 EXPOSE 3000
 CMD ["node", "dist/server.js"]
 ```

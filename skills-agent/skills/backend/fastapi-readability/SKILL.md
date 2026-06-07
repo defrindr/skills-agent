@@ -101,40 +101,9 @@ alembic upgrade head
 
 ## 2. Struktur folder — scale-aware
 
-### Simple (< 5 endpoints, 1-2 dev)
-
-```
-app/
-├── routers/orders.py    ← endpoint + logic langsung
-├── db.py
-├── schemas.py
-├── config.py
-└── main.py
-```
-
-### Medium (5-15 endpoints, 3-5 dev)
-
-```
-app/
-├── features/
-│   ├── orders/     ← router.py, service.py, schemas.py
-│   └── products/   ← router.py, service.py
-├── shared/         ← db/, errors/, security/
-└── main.py
-```
-
-### Complex (> 15 endpoints, > 5 dev)
-
-```
-app/
-├── features/
-│   ├── orders/     ← router.py, service.py, repository.py, schemas.py
-│   └── inventory/
-├── shared/domain/  ← business rules
-└── main.py
-```
-
-Gunakan repository pattern hanya jika perlu switch DB provider, complex query reuse, atau testing perlu banyak mock.
+- **Simple** (< 5 endpoints): `app/routers/` + `db.py` + `schemas.py` + `config.py`
+- **Medium** (5-15): `app/features/{orders,products}/` + `app/shared/`
+- **Complex** (> 15): tambah `app/shared/domain/` + repository pattern (hanya jika perlu)
 
 ---
 
@@ -200,19 +169,13 @@ class OrderResponse(BaseModel):
 ```python
 def register_exception_handlers(app: FastAPI) -> None:
     @app.exception_handler(AppError)
-    async def handle_app_error(request: Request, exc: AppError) -> JSONResponse:
-        return JSONResponse(
-            status_code=exc.status_code,
-            content={"ok": False, "error": {"code": exc.code, "message": exc.message}},
-        )
+    async def handle_app_error(_: Request, exc: AppError) -> JSONResponse:
+        return JSONResponse(status_code=exc.status_code, content={"ok": False, "error": {"code": exc.code, "message": exc.message}})
 
     @app.exception_handler(Exception)
-    async def handle_unexpected(request: Request, exc: Exception) -> JSONResponse:
+    async def handle_unexpected(request: Request, _: Exception) -> JSONResponse:
         logger.exception("Unhandled error on %s %s", request.method, request.url)
-        return JSONResponse(
-            status_code=500,
-            content={"ok": False, "error": {"code": "INTERNAL_ERROR", "message": "Something went wrong."}},
-        )
+        return JSONResponse(status_code=500, content={"ok": False, "error": {"code": "INTERNAL_ERROR", "message": "Something went wrong."}})
 ```
 
 ---

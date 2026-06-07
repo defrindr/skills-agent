@@ -46,17 +46,12 @@ Frontend camelCase, backend boleh snake_case. Konversi di boundary API, bukan di
 
 ```ts
 // shared/api/case-transform.ts
-function snakeToCamel(key: string): string {
-  return key.replace(/_([a-z])/g, (_, l) => l.toUpperCase())
-}
+function snakeToCamel(k: string) { return k.replace(/_([a-z])/g, (_, l) => l.toUpperCase()) }
 
 export function camelizeResponse<T>(value: unknown): T {
   if (Array.isArray(value)) return value.map(camelizeResponse) as T
-  if (typeof value !== 'object' || value === null || Array.isArray(value)) return value as T
-  return Object.fromEntries(
-    Object.entries(value as Record<string, unknown>)
-      .map(([k, v]) => [snakeToCamel(k), camelizeResponse(v)])
-  ) as T
+  if (typeof value !== 'object' || value === null) return value as T
+  return Object.fromEntries(Object.entries(value as Record<string, unknown>).map(([k, v]) => [snakeToCamel(k), camelizeResponse(v)])) as T
 }
 ```
 
@@ -191,24 +186,7 @@ Nama test natural language: `it('rejects login when password is incorrect', () =
 
 ## PR Checklist
 
-```
-[ ] Server Component jadi default
-[ ] Client Component hanya untuk interaksi/browser API
-[ ] app/ hanya routing/layout/route handler
-[ ] Domain logic di features/
-[ ] Semua response lewat apiClient
-[ ] snake_case auto jadi camelCase
-[ ] Component tidak baca field snake_case
-[ ] Response eksternal divalidasi Zod
-[ ] Form input divalidasi Zod
-[ ] Search params divalidasi
-[ ] Fetch caching eksplisit
-[ ] Loading/empty/error state tersedia
-[ ] error.tsx tidak expose stack trace
-[ ] Secret tidak pakai NEXT_PUBLIC_
-[ ] .env.example updated
-[ ] Unexpected error masuk Sentry/logger
-```
+`[ ] Server Component default | Client hanya interaksi | app/ hanya routing | domain di features/ | apiClient wajib | snake→camel auto | Zod validasi eksternal + form + search params | caching eksplisit | loading/empty/error state | error.tsx no stack trace | secret ≠ NEXT_PUBLIC_ | .env.example updated | Sentry/logger`
 
 ## Referensi
 
